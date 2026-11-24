@@ -2,7 +2,7 @@
 name: jira-status
 description: Jira（Data Center / Cloud）を REST API で読み取り専用に使い、担当課題の一覧、プロジェクトの概況、期限超過・停滞課題の検出、JQL 検索、課題詳細とコメントの確認、朝会（standup）と週次報告の材料集めを行うときに使う。期日・ステータス・コメントを中心に課題の確認を、Web 画面を行ったり来たりせずに済ませたいときに使う。
 metadata:
-  version: "1.1.1"
+  version: "1.1.2"
 ---
 
 # Jira 課題確認
@@ -19,6 +19,16 @@ Jira（Data Center は REST API v2、Cloud は REST API v3）に対して読み�
   - Data Center: `JIRA_PAT`（Personal Access Token。`Authorization: Bearer` で送る）
   - Cloud: `JIRA_EMAIL` ＋ `JIRA_API_TOKEN`（Basic 認証）
   - 版の指定: `JIRA_EDITION=dc|cloud`（任意）。未指定なら、URL が `*.atlassian.net` のとき Cloud、それ以外で PAT があれば DC、メール＋トークンがあれば Cloud と判定する。
+  - 版ごとに必要な環境変数は次のとおり。設定を案内するときは、相手の版で「必須」のものだけを挙げる。
+
+    | 環境変数 | Data Center | Cloud |
+    |---|---|---|
+    | `JIRA_BASE_URL` | 必須 | 必須 |
+    | `JIRA_PAT` | 必須 | 不要 |
+    | `JIRA_EMAIL` | 不要 | 必須（`JIRA_API_TOKEN` と組） |
+    | `JIRA_API_TOKEN` | 不要 | 必須（`JIRA_EMAIL` と組） |
+    | `JIRA_EDITION` | 任意 | 任意 |
+    | `JIRA_ISSUE_KEYS` | 任意 | 任意 |
   - 利用環境は主に Windows 11 を想定する。Windows では、環境変数はユーザー環境変数に設定してエディタを再起動するのが確実である。PowerShell の `$env:` で設定した値は、そのシェルからエディタを起動した場合にだけ渡る（スタートメニューから起動したエディタには渡らない）。「環境変数が設定されていません」と出たら、設定場所とエディタの起動経路を疑う。コマンド例の `python` は、Python ランチャーの `py` でもよい。
 - PAT・API トークン・メールアドレスなどの秘密の値を、チャット・ファイル・コミット・チケットに書かない。
 - 対象を課題キーで限定できる（任意）。一覧系コマンドの `--keys ABC-1,ABC-2`、または環境変数 `JIRA_ISSUE_KEYS`（カンマ区切り。`--keys` が優先）で、`key in (...)` を条件に AND で足す。指定しなければ限定しない。キーは形式検証を通ったものだけを JQL に入れる（不正なキーが混ざればエラーで止まる）。

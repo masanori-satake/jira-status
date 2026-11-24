@@ -63,14 +63,18 @@ python .agents/skills/jira-status/scripts/install.py --workspace . --check
 2. 認証情報を用意します。
    - Data Center: プロフィール → Personal access tokens から、この用途専用のトークンを発行します。
    - Cloud: Atlassian アカウントの API トークンを発行し、ログインに使うメールアドレスと組み合わせます。
-3. 環境変数を設定します。**推奨は Windows のユーザー環境変数**です。スタートメニューで「環境変数」と検索して「環境変数を編集」を開き、「（ユーザー名）のユーザー環境変数」に次を追加します。
+3. 環境変数を設定します。必要な変数は、利用している Jira が Data Center か Cloud かで違います。
 
-   | 変数名 | 値 |
-   |---|---|
-   | `JIRA_BASE_URL` | Jira のルート URL |
-   | `JIRA_PAT` | Data Center の場合: 発行した PAT |
-   | `JIRA_EMAIL` | Cloud の場合: メールアドレス |
-   | `JIRA_API_TOKEN` | Cloud の場合: 発行した API トークン |
+   | 環境変数 | Data Center | Cloud | 設定する値 |
+   |---|---|---|---|
+   | `JIRA_BASE_URL` | **必須** | **必須** | Jira のルート URL |
+   | `JIRA_PAT` | **必須** | 不要 | 発行した Personal Access Token（Bearer 認証） |
+   | `JIRA_EMAIL` | 不要 | **必須** | ログインに使うメールアドレス（`JIRA_API_TOKEN` と組で使う） |
+   | `JIRA_API_TOKEN` | 不要 | **必須** | 発行した API トークン（Basic 認証） |
+   | `JIRA_EDITION` | 任意 | 任意 | `dc` または `cloud`。未指定なら URL と認証情報から自動判定します |
+   | `JIRA_ISSUE_KEYS` | 任意 | 任意 | 対象を絞る課題キー（カンマ区切り） |
+
+   **推奨は Windows のユーザー環境変数**への設定です。スタートメニューで「環境変数」と検索して「環境変数を編集」を開き、「（ユーザー名）のユーザー環境変数」に、自分の版で「必須」のものを追加します（「任意」は必要なときだけ）。
 
    設定したら、エディタ（VS Code / Kiro）を**再起動**してください。再起動後に起動したエディタからは、エージェントも含めて環境変数が読めるようになります。
 
@@ -87,7 +91,7 @@ $env:JIRA_API_TOKEN = "（発行したAPIトークン）"
 
    macOS / Linux では、シェルの `export JIRA_BASE_URL=...` のように設定します（変数名は同じです）。
 
-`JIRA_BASE_URL` は Jira のルート URL（コンテキストパスを含む、末尾に `/rest` は付けない）です。**末尾のスラッシュは、あってもなくても構いません。** ヘルパーが末尾のスラッシュを取り除いてから接続します。版は URL と認証情報から自動判定しますが、`JIRA_EDITION=dc|cloud` で明示もできます。対象キーを常時絞りたい場合は `JIRA_ISSUE_KEYS`（カンマ区切り）も同じ場所に設定できます。
+`JIRA_BASE_URL` は Jira のルート URL（コンテキストパスを含む、末尾に `/rest` は付けない）です。**末尾のスラッシュは、あってもなくても構いません。** ヘルパーが末尾のスラッシュを取り除いてから接続します。
 
 4. 疎通確認（スキルフォルダ `.agents/skills/jira-status/` で、PowerShell から実行）:
 
