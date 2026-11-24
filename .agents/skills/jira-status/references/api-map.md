@@ -41,6 +41,12 @@
 | `standup` | 検索 ×3 | 自分の担当で「`resolved >= -1d`」「ステータス区分が In Progress で未完了」「未完了で `duedate <= "今日"`」 |
 | `weekly` | 検索 ×3 | 「`resolved >= -7d`」「`created >= -7d`」「未完了の期限超過」。範囲は既定で自分の担当、`--project` でプロジェクト全体 |
 
+## フィールド定義
+
+| 目的 | エンドポイント | 備考 |
+|---|---|---|
+| 全フィールドの一覧 | `GET /field`（DC／Cloud 共通の相対パス） | 配列で返る。各要素に `id`（例: `customfield_10001`）、`name`、`custom`（カスタムかどうか）、`clauseNames`（JQL の句名）、`searchable`／`orderable`、`schema`（`type`、`items`、`custom`＝カスタム種別のプラグインキー、`customId`）が入る。`fields` コマンドは既定でカスタムのみ、`--all` でシステムフィールドも含める |
+
 ## 課題詳細
 
 | 目的 | エンドポイント | 備考 |

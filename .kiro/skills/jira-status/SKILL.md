@@ -1,8 +1,8 @@
 ---
 name: jira-status
-description: Jira（Data Center / Cloud）を REST API で読み取り専用に使い、担当課題の一覧、プロジェクトの概況、期限超過・停滞課題の検出、JQL 検索、課題詳細とコメントの確認、朝会（standup）と週次報告の材料集めを行うときに使う。期日・ステータス・コメントを中心に課題の確認を、Web 画面を行ったり来たりせずに済ませたいときに使う。
+description: Jira（Data Center / Cloud）を REST API で読み取り専用に使い、担当課題の一覧、プロジェクトの概況、期限超過・停滞課題の検出、JQL 検索、課題詳細とコメントの確認、朝会（standup）と週次報告の材料集め、カスタムフィールドを含むフィールド定義の収集を行うときに使う。期日・ステータス・コメントを中心に課題の確認を、Web 画面を行ったり来たりせずに済ませたいときに使う。
 metadata:
-  version: "1.1.2"
+  version: "1.2.0"
 ---
 
 # Jira 課題確認
@@ -51,6 +51,7 @@ python scripts/jira.py check
 4. **問題の検出**: `overdue` で期限超過の未完了課題、`stale --days N` で N 日以上更新のない未完了課題を抽出する。既定は自分の担当で、`--project KEY`／`--all` で範囲を変える。
 5. **プロジェクト概況**: `project KEY` でステータス区分ごとの件数と期限超過の一覧を見る。
 6. **個別の確認**: `issue KEY` で課題の詳細（ステータス、期日、担当、優先度、更新日）と直近コメントを確認する。自由な絞り込みは `search --jql "..."` で行う。
+7. **フィールドの下調べ**: `fields` でフィールド定義（既定はカスタムフィールドのみ、`--all` でシステムフィールドも含む）を収集する。各フィールドの ID、名前、種類（schema のデータ型とカスタム種別）、JQL で使える句名が分かる。カスタムフィールドの棚卸しや、JQL を書く前の下調べに使う。プロジェクト×課題タイプごとの必須・表示はこの範囲外（createmeta は扱わない）。
 
 コマンドとエンドポイントの対応は `references/api-map.md`、集計の定義と読み方は `references/check-recipes.md`、DC と Cloud の差は `references/cloud-differences.md` を参照。
 
@@ -73,6 +74,7 @@ python scripts/jira.py overdue [--project KEY | --all] [--keys ABC-1,ABC-2] [--l
 python scripts/jira.py stale [--days 14] [--project KEY | --all] [--keys ABC-1,ABC-2] [--limit N] [--json]
 python scripts/jira.py standup [--keys ABC-1,ABC-2] [--limit N] [--json]
 python scripts/jira.py weekly [--project KEY] [--keys ABC-1,ABC-2] [--limit N] [--json]
+python scripts/jira.py fields [--all] [--json]
 ```
 
 共通: `--json` で整形済みの JSON を出す。

@@ -21,6 +21,7 @@ Python 標準ライブラリのみ。HTTP は GET だけを使う。
   python scripts/jira.py stale --days 14 [--project ABC | --all]
   python scripts/jira.py standup
   python scripts/jira.py weekly [--project ABC]
+  python scripts/jira.py fields [--all] [--json]
 """
 import argparse
 import base64
@@ -355,6 +356,86 @@ def key_clause(keys):
     return "key in (%s)" % ", ".join(keys)
 
 
+# ---------------------------------------------------------------- フィールド
+
+CUSTOM_TYPE_LABELS = {
+    "com.atlassian.jira.plugin.system.customfieldtypes:textfield": "テキスト（単一行）",
+    "com.atlassian.jira.plugin.system.customfieldtypes:textarea": "テキスト（複数行）",
+    "com.atlassian.jira.plugin.system.customfieldtypes:float": "数値",
+    "com.atlassian.jira.plugin.system.customfieldtypes:datepicker": "日付ピッカー",
+    "com.atlassian.jira.plugin.system.customfieldtypes:datetime": "日時ピッカー",
+    "com.atlassian.jira.plugin.system.customfieldtypes:select": "単一選択リスト",
+    "com.atlassian.jira.plugin.system.customfieldtypes:multiselect": "複数選択リスト",
+    "com.atlassian.jira.plugin.system.customfieldtypes:radiobuttons": "ラジオボタン",
+    "com.atlassian.jira.plugin.system.customfieldtypes:multicheckboxes": "チェックボックス（複数）",
+    "com.atlassian.jira.plugin.system.customfieldtypes:cascadingselect": "カスケード選択",
+    "com.atlassian.jira.plugin.system.customfieldtypes:userpicker": "ユーザー（単一）",
+    "com.atlassian.jira.plugin.system.customfieldtypes:multiuserpicker": "ユーザー（複数）",
+    "com.atlassian.jira.plugin.system.customfieldtypes:grouppicker": "グループ（単一）",
+    "com.atlassian.jira.plugin.system.customfieldtypes:multigrouppicker": "グループ（複数）",
+    "com.atlassian.jira.plugin.system.customfieldtypes:labels": "ラベル",
+    "com.atlassian.jira.plugin.system.customfieldtypes:url": "URL",
+    "com.atlassian.jira.plugin.system.customfieldtypes:version": "バージョン（単一）",
+    "com.atlassian.jira.plugin.system.customfieldtypes:multiversion": "バージョン（複数）",
+    "com.atlassian.jira.plugin.system.customfieldtypes:project": "プロジェクト",
+    "com.atlassian.jira.plugin.system.customfieldtypes:readonlyfield": "読み取り専用テキスト",
+}
+
+_SCHEMA_TYPE_LABELS = {
+    "string": "文字列", "number": "数値", "date": "日付", "datetime": "日時",
+    "array": "配列", "option": "選択肢", "user": "ユーザー",
+}
+
+
+def _type_label(schema):
+    ctype = schema.get("custom") or ""
+    if ctype in CUSTOM_TYPE_LABELS:
+        return CUSTOM_TYPE_LABELS[ctype]
+    if ctype:
+        # 未知のカスタム種別はプラグインキーの末尾で示す
+        return ctype.rsplit(":", 1)[-1]
+    t = schema.get("type", "")
+    base = _SCHEMA_TYPE_LABELS.get(t, t)
+    if t == "array" and schema.get("items"):
+        base += "（要素: %s）" % schema["items"]
+    return base
+
+
+def normalise_field(raw):
+    schema = raw.get("schema") or {}
+    return {
+        "id": raw.get("id", ""),
+        "name": raw.get("name", ""),
+        "custom": bool(raw.get("custom")),
+        "type": schema.get("type", ""),
+        "items": schema.get("items", ""),
+        "customType": schema.get("custom", ""),
+        "typeLabel": _type_label(schema),
+        "customId": schema.get("customId"),
+        "clauseNames": raw.get("clauseNames") or [],
+        "searchable": bool(raw.get("searchable")),
+        "orderable": bool(raw.get("orderable")),
+    }
+
+
+def cmd_fields(cfg, args):
+    raw = api_get(cfg, "/field")
+    fields = [normalise_field(f) for f in raw if isinstance(f, dict)]
+    if not args.all:
+        fields = [f for f in fields if f["custom"]]
+    fields.sort(key=lambda f: f["name"])
+    if args.json:
+        print(json.dumps(fields, ensure_ascii=False, indent=2))
+        return 0
+    if not fields:
+        print("（該当なし）")
+        return 0
+    for f in fields:
+        jql = ", ".join(f["clauseNames"])
+        print("%-18s %-24s %-16s JQL: %s" % (f["id"], f["name"], f["typeLabel"], jql))
+    return 0
+
+
 # ---------------------------------------------------------------- コマンド
 
 def cmd_check(cfg, args):
@@ -576,6 +657,10 @@ def main(argv=None):
     p.add_argument("--limit", type=int, default=100)
     p.add_argument("--json", action="store_true")
 
+    p = sub.add_parser("fields", help="フィールド定義の一覧（既定はカスタムのみ）")
+    p.add_argument("--all", action="store_true", help="システムフィールドも含む")
+    p.add_argument("--json", action="store_true")
+
     args = parser.parse_args(argv)
     try:
         cfg = Config()
@@ -586,6 +671,7 @@ def main(argv=None):
         "check": cmd_check, "my-issues": cmd_my_issues, "search": cmd_search,
         "issue": cmd_issue, "project": cmd_project, "overdue": cmd_overdue,
         "stale": cmd_stale, "standup": cmd_standup, "weekly": cmd_weekly,
+        "fields": cmd_fields,
     }
     try:
         return handlers[args.command](cfg, args)

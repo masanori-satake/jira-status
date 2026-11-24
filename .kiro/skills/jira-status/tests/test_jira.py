@@ -56,6 +56,42 @@ CLOUD_ISSUES = [
     make_issue("XYZ-3", "Cloud 三件目"),
 ]
 
+FIELDS = [
+    {"id": "summary", "key": "summary", "name": "Summary", "custom": False,
+     "orderable": True, "navigable": True, "searchable": True,
+     "clauseNames": ["summary"],
+     "schema": {"type": "string", "system": "summary"}},
+    {"id": "customfield_10001", "key": "customfield_10001",
+     "name": "受入基準", "custom": True,
+     "orderable": True, "navigable": True, "searchable": True,
+     "clauseNames": ["cf[10001]", "受入基準"],
+     "schema": {"type": "string",
+                "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textarea",
+                "customId": 10001}},
+    {"id": "customfield_10002", "key": "customfield_10002",
+     "name": "見積り日", "custom": True,
+     "orderable": True, "navigable": True, "searchable": True,
+     "clauseNames": ["cf[10002]", "見積り日"],
+     "schema": {"type": "date",
+                "custom": "com.atlassian.jira.plugin.system.customfieldtypes:datepicker",
+                "customId": 10002}},
+    {"id": "customfield_10003", "key": "customfield_10003",
+     "name": "対象OS", "custom": True,
+     "orderable": True, "navigable": True, "searchable": True,
+     "clauseNames": ["cf[10003]", "対象OS"],
+     "schema": {"type": "array", "items": "option",
+                "custom": "com.atlassian.jira.plugin.system.customfieldtypes:multiselect",
+                "customId": 10003}},
+    {"id": "customfield_10004", "key": "customfield_10004",
+     "name": "外部連携ID", "custom": True,
+     "orderable": False, "navigable": True, "searchable": True,
+     "clauseNames": ["cf[10004]", "外部連携ID"],
+     "schema": {"type": "string",
+                "custom": "com.example.plugin:external-id",
+                "customId": 10004}},
+]
+
+
 ADF_BODY = {
     "type": "doc", "version": 1,
     "content": [
@@ -126,6 +162,8 @@ class DcHandler(BaseHTTPRequestHandler):
         qs = parse_qs(parsed.query)
         if path == "/rest/api/2/myself":
             self.send_json({"name": "test-user", "displayName": "Test User"})
+        elif path == "/rest/api/2/field":
+            self.send_json(FIELDS)
         elif path == "/rest/api/2/serverInfo":
             self.send_json({"version": "9.12.0", "deploymentType": "Server"})
         elif path == "/rest/api/2/search":
@@ -219,6 +257,8 @@ class CloudHandler(BaseHTTPRequestHandler):
         qs = parse_qs(parsed.query)
         if path == "/rest/api/3/myself":
             self.send_json({"accountId": "abc123", "displayName": "Test User"})
+        elif path == "/rest/api/3/field":
+            self.send_json(FIELDS)
         elif path == "/rest/api/3/serverInfo":
             self.send_json({"version": "1001.0.0", "deploymentType": "Cloud"})
         elif path == "/rest/api/3/search/jql":
@@ -458,6 +498,30 @@ def main():
         json.loads(p.stdout)
     print("dc overdue/stale/standup/weekly OK")
 
+    # fields: custom only by default, type labels from the schema,
+    # unknown custom types fall back to the plugin-key suffix
+    p = run_helper(env, "fields", "--json")
+    assert p.returncode == 0, p.stderr
+    fields = json.loads(p.stdout)
+    # sorted by name (Unicode code point order of the fixture names)
+    assert [f["id"] for f in fields] == [
+        "customfield_10001", "customfield_10004",
+        "customfield_10003", "customfield_10002"], fields
+    by_id = {f["id"]: f for f in fields}
+    assert by_id["customfield_10001"]["typeLabel"] == "テキスト（複数行）"
+    assert by_id["customfield_10001"]["customId"] == 10001
+    assert by_id["customfield_10002"]["typeLabel"] == "日付ピッカー"
+    assert by_id["customfield_10003"]["typeLabel"] == "複数選択リスト"
+    assert by_id["customfield_10003"]["items"] == "option"
+    assert by_id["customfield_10004"]["typeLabel"] == "external-id"
+    p = run_helper(env, "fields", "--all", "--json")
+    assert p.returncode == 0, p.stderr
+    assert len(json.loads(p.stdout)) == 5
+    p = run_helper(env, "fields")
+    assert p.returncode == 0, p.stderr
+    assert "customfield_10001" in p.stdout and "cf[10001]" in p.stdout, p.stdout
+    print("dc fields OK")
+
     # wrong token -> 401 surfaces as an API error, without leaking it
     env_bad = dict(env)
     env_bad["JIRA_PAT"] = "WRONGTOKEN"
@@ -511,6 +575,13 @@ def main():
     assert p.returncode == 0, p.stderr
     assert [i["key"] for i in json.loads(p.stdout)] == ["XYZ-2"]
     print("cloud --keys OK")
+
+    # Cloud fields come from the v3 /field endpoint, same shape
+    p = run_helper(env_c, "fields", "--json")
+    assert p.returncode == 0, p.stderr
+    cfields = json.loads(p.stdout)
+    assert len(cfields) == 4 and all(f["custom"] for f in cfields), cfields
+    print("cloud fields OK")
 
     # ADF extraction for description and comments
     p = run_helper(env_c, "issue", "XYZ-1", "--json")
