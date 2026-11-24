@@ -76,7 +76,11 @@ def main(argv=None):
         shutil.rmtree(MIRROR)
     shutil.copytree(CANON, MIRROR, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git"))
     a, b = signature(CANON), signature(MIRROR)
-    assert a == b, "mirror does not match canonical after sync"
+    if a != b:
+        # Do not use assert here: it disappears under `python -O`, and
+        # this parity check is a safety property, not a debug aid.
+        print("mirror does not match canonical after sync", file=sys.stderr)
+        return 1
     print(f"Synced mirror ({len(a)} files), parity verified")
     return 0
 

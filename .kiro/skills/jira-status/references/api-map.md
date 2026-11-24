@@ -24,6 +24,7 @@
 | Cloud（v3） | `GET /search/jql`（`jql`、`maxResults`、`fields`、継続時は `nextPageToken`） | 旧 `/search` は廃止済みのため使わない。応答の `isLast` が真、または `nextPageToken` が無くなるまで継続トークンを渡す。応答に `total` は無い |
 
 - コマンド側の打ち切りは `--limit N`（既定はコマンドごとに 100 など）。打ち切ったかどうかは報告に明記する。
+- 対象のキー限定（任意）: 一覧系コマンドの `--keys ABC-1,ABC-2` または環境変数 `JIRA_ISSUE_KEYS` で、`key in (ABC-1, ABC-2)` を各コマンドの JQL に AND で足す（`search` では利用者の JQL を括弧で包み、ORDER BY は末尾に残す）。キーは形式検証（プロジェクトキー＋番号）を通ったものだけを使う。
 - 件数だけを数える場合、DC は `maxResults=0` の検索で `total` を読む。Cloud には総数がないためページングで数え上げ、1000 件で打ち切って「以上」として扱う。
 
 ## コマンドとエンドポイントの対応

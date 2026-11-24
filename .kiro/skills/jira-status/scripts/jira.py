@@ -9,13 +9,14 @@ Python 標準ライブラリのみ。HTTP は GET だけを使う。
   JIRA_EMAIL       Cloud のログイン メールアドレス（JIRA_API_TOKEN と組で使う）
   JIRA_API_TOKEN   Cloud の API トークン（Basic 認証）
   JIRA_EDITION     dc | cloud（任意。未指定なら接続先と認証情報から判定する）
+  JIRA_ISSUE_KEYS  対象を課題キーで限定（カンマ区切り、任意。--keys が優先する）
 
 使い方:
   python scripts/jira.py check
-  python scripts/jira.py my-issues [--all] [--limit N] [--json]
+  python scripts/jira.py my-issues [--all] [--limit N] [--keys ABC-1,ABC-2] [--json]
   python scripts/jira.py search --jql "project = ABC AND resolution = Unresolved"
   python scripts/jira.py issue ABC-123 [--comments 5]
-  python scripts/jira.py project ABC
+  python scripts/jira.py project ABC [--keys ABC-1,ABC-2]
   python scripts/jira.py overdue [--project ABC | --all]
   python scripts/jira.py stale --days 14 [--project ABC | --all]
   python scripts/jira.py standup
@@ -25,6 +26,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -328,6 +330,31 @@ def _join(*parts):
     return " AND ".join(p for p in parts if p)
 
 
+_KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*-\d+$")
+
+
+def resolve_keys(args):
+    """対象キーの限定を解決する。--keys ＞ JIRA_ISSUE_KEYS ＞ 限定なし。
+
+    形式が不正なキーが混ざっていたら ApiError で止める（検証を通った
+    キーだけを JQL に入れるため、JQL への混入は起きない）。
+    """
+    raw = getattr(args, "keys", None) or os.environ.get("JIRA_ISSUE_KEYS", "")
+    if not raw or not raw.strip():
+        return None
+    keys = [k.strip() for k in raw.split(",") if k.strip()]
+    bad = [k for k in keys if not _KEY_RE.match(k)]
+    if bad:
+        raise ApiError("課題キーの形式が不正です: %s" % ", ".join(bad))
+    return keys
+
+
+def key_clause(keys):
+    if not keys:
+        return ""
+    return "key in (%s)" % ", ".join(keys)
+
+
 # ---------------------------------------------------------------- コマンド
 
 def cmd_check(cfg, args):
@@ -342,16 +369,27 @@ def cmd_check(cfg, args):
 
 
 def cmd_my_issues(cfg, args):
-    jql = "assignee = currentUser()"
+    parts = ["assignee = currentUser()", key_clause(resolve_keys(args))]
     if not args.all:
-        jql += " AND resolution = Unresolved"
-    jql += " ORDER BY duedate ASC, updated DESC"
+        parts.append("resolution = Unresolved")
+    jql = _join(*parts) + " ORDER BY duedate ASC, updated DESC"
     print_issues(search_all(cfg, jql, limit=args.limit), args.json)
     return 0
 
 
 def cmd_search(cfg, args):
-    print_issues(search_all(cfg, args.jql, limit=args.limit), args.json)
+    jql = args.jql
+    kc = key_clause(resolve_keys(args))
+    if kc:
+        # 利用者の JQL を括弧で包んでからキー条件を AND する。
+        # ORDER BY があれば、その手前で包む。
+        m = re.search(r"\border\s+by\b", jql, re.I)
+        if m:
+            jql = "(%s) AND %s %s" % (jql[:m.start()].strip(), kc,
+                                      jql[m.start():].strip())
+        else:
+            jql = "(%s) AND %s" % (jql, kc)
+    print_issues(search_all(cfg, jql, limit=args.limit), args.json)
     return 0
 
 
@@ -394,7 +432,8 @@ def cmd_project(cfg, args):
     key = args.key
     proj = api_get(cfg, "/project/" + urllib.parse.quote(key, safe=""))
     print("%s  %s" % (proj.get("key", key), proj.get("name", "")))
-    base = 'project = "%s"' % key.replace('"', '\\"')
+    base = _join('project = "%s"' % key.replace('"', '\\"'),
+                 key_clause(resolve_keys(args)))
     for label, cat in (("未着手", "To Do"), ("進行中", "In Progress"), ("完了", "Done")):
         n, capped = count_jql(cfg, _join(base, 'statusCategory = "%s"' % cat))
         print("%s: %s%s 件" % (label, n, " 以上" if capped else ""))
@@ -411,14 +450,16 @@ def cmd_project(cfg, args):
 
 def cmd_overdue(cfg, args):
     today = date.today().isoformat()
-    jql = _join(_scope(args), "resolution = Unresolved",
+    jql = _join(_scope(args), key_clause(resolve_keys(args)),
+                "resolution = Unresolved",
                 'duedate < "%s"' % today) + " ORDER BY duedate ASC"
     print_issues(search_all(cfg, jql, limit=args.limit), args.json)
     return 0
 
 
 def cmd_stale(cfg, args):
-    jql = _join(_scope(args), "resolution = Unresolved",
+    jql = _join(_scope(args), key_clause(resolve_keys(args)),
+                "resolution = Unresolved",
                 "updated < -%dd" % args.days) + " ORDER BY updated ASC"
     print_issues(search_all(cfg, jql, limit=args.limit), args.json)
     return 0
@@ -435,11 +476,12 @@ def _section(title, issues, as_json):
 def cmd_standup(cfg, args):
     today = date.today().isoformat()
     me = "assignee = currentUser()"
+    kc = key_clause(resolve_keys(args))
     result = {}
     sections = [
-        ("完了（直近24時間）", _join(me, "resolved >= -1d")),
-        ("進行中", _join(me, 'statusCategory = "In Progress"', "resolution = Unresolved")),
-        ("期限超過・今日が期限", _join(me, "resolution = Unresolved",
+        ("完了（直近24時間）", _join(me, kc, "resolved >= -1d")),
+        ("進行中", _join(me, kc, 'statusCategory = "In Progress"', "resolution = Unresolved")),
+        ("期限超過・今日が期限", _join(me, kc, "resolution = Unresolved",
                                        'duedate <= "%s"' % today)),
     ]
     for title, jql in sections:
@@ -459,11 +501,12 @@ def cmd_weekly(cfg, args):
     else:
         who = "assignee = currentUser()"
     today = date.today().isoformat()
+    kc = key_clause(resolve_keys(args))
     result = {}
     sections = [
-        ("完了（直近7日）", _join(who, "resolved >= -7d")),
-        ("新規（直近7日）", _join(who, "created >= -7d")),
-        ("期限超過（未完了）", _join(who, "resolution = Unresolved",
+        ("完了（直近7日）", _join(who, kc, "resolved >= -7d")),
+        ("新規（直近7日）", _join(who, kc, "created >= -7d")),
+        ("期限超過（未完了）", _join(who, kc, "resolution = Unresolved",
                                      'duedate < "%s"' % today)),
     ]
     for title, jql in sections:
@@ -484,13 +527,17 @@ def main(argv=None):
 
     sub.add_parser("check", help="接続確認")
 
+    keys_help = "対象を課題キーで限定（カンマ区切り。環境変数 JIRA_ISSUE_KEYS でも指定可）"
+
     p = sub.add_parser("my-issues", help="自分の担当課題")
     p.add_argument("--all", action="store_true", help="完了も含む")
+    p.add_argument("--keys", help=keys_help)
     p.add_argument("--limit", type=int, default=100)
     p.add_argument("--json", action="store_true")
 
     p = sub.add_parser("search", help="JQL 自由検索")
     p.add_argument("--jql", required=True)
+    p.add_argument("--keys", help=keys_help)
     p.add_argument("--limit", type=int, default=100)
     p.add_argument("--json", action="store_true")
 
@@ -501,10 +548,12 @@ def main(argv=None):
 
     p = sub.add_parser("project", help="プロジェクトの概況")
     p.add_argument("key")
+    p.add_argument("--keys", help=keys_help)
 
     p = sub.add_parser("overdue", help="期限超過の未完了課題")
     p.add_argument("--project")
     p.add_argument("--all", action="store_true", help="見える範囲すべて（既定は自分の担当）")
+    p.add_argument("--keys", help=keys_help)
     p.add_argument("--limit", type=int, default=100)
     p.add_argument("--json", action="store_true")
 
@@ -512,15 +561,18 @@ def main(argv=None):
     p.add_argument("--days", type=int, default=14)
     p.add_argument("--project")
     p.add_argument("--all", action="store_true")
+    p.add_argument("--keys", help=keys_help)
     p.add_argument("--limit", type=int, default=100)
     p.add_argument("--json", action="store_true")
 
     p = sub.add_parser("standup", help="朝会の材料（自分の分）")
+    p.add_argument("--keys", help=keys_help)
     p.add_argument("--limit", type=int, default=50)
     p.add_argument("--json", action="store_true")
 
     p = sub.add_parser("weekly", help="週次報告の材料")
     p.add_argument("--project", help="プロジェクト全体で集める（既定は自分の担当）")
+    p.add_argument("--keys", help=keys_help)
     p.add_argument("--limit", type=int, default=100)
     p.add_argument("--json", action="store_true")
 

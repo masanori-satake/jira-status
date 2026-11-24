@@ -15,6 +15,7 @@ Jira の Web 画面を何枚も開いて確認していたことを、エージ�
 - **JQL 検索** — 自由な JQL で課題を検索
 - **課題詳細** — ステータス、期日、担当、優先度、更新日と直近コメントの確認
 - **朝会・週次の材料** — 朝会向けに「完了（直近24時間）／進行中／期限超過・今日が期限」、週次向けに「直近7日の完了・新規／未完了の期限超過」を集める
+- **対象のキー限定（任意）** — 一覧系コマンドは `--keys ABC-1,ABC-2` や環境変数 `JIRA_ISSUE_KEYS` で、対象を特定の課題キーだけに絞れます。絞り込みは JQL でサーバー側にかかるため、取得量も減ります。指定しなければ従来どおり限定しません
 
 Data Center（REST API v2）と Cloud（REST API v3）の世代差は、ヘルパーが吸収します。検索のページング方式（DC は `startAt`、Cloud は新しい `/search/jql` の `nextPageToken`）や、Cloud のコメント・説明の ADF 形式からテキストへの抽出も、ヘルパー側で行います。
 
@@ -91,14 +92,14 @@ python scripts/jira.py check
 
 ```bash
 python scripts/jira.py check
-python scripts/jira.py my-issues [--all] [--limit N] [--json]
-python scripts/jira.py search --jql "..." [--limit N] [--json]
+python scripts/jira.py my-issues [--all] [--keys ABC-1,ABC-2] [--limit N] [--json]
+python scripts/jira.py search --jql "..." [--keys ABC-1,ABC-2] [--limit N] [--json]
 python scripts/jira.py issue KEY [--comments 5] [--json]
-python scripts/jira.py project KEY
-python scripts/jira.py overdue [--project KEY | --all] [--limit N] [--json]
-python scripts/jira.py stale [--days 14] [--project KEY | --all] [--limit N] [--json]
-python scripts/jira.py standup [--limit N] [--json]
-python scripts/jira.py weekly [--project KEY] [--limit N] [--json]
+python scripts/jira.py project KEY [--keys ABC-1,ABC-2]
+python scripts/jira.py overdue [--project KEY | --all] [--keys ABC-1,ABC-2] [--limit N] [--json]
+python scripts/jira.py stale [--days 14] [--project KEY | --all] [--keys ABC-1,ABC-2] [--limit N] [--json]
+python scripts/jira.py standup [--keys ABC-1,ABC-2] [--limit N] [--json]
+python scripts/jira.py weekly [--project KEY] [--keys ABC-1,ABC-2] [--limit N] [--json]
 ```
 
 ## 限界

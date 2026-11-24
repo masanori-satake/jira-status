@@ -2,7 +2,7 @@
 name: jira-status
 description: Jira（Data Center / Cloud）を REST API で読み取り専用に使い、担当課題の一覧、プロジェクトの概況、期限超過・停滞課題の検出、JQL 検索、課題詳細とコメントの確認、朝会（standup）と週次報告の材料集めを行うときに使う。期日・ステータス・コメントを中心に課題の確認を、Web 画面を行ったり来たりせずに済ませたいときに使う。
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Jira 課題確認
@@ -20,7 +20,8 @@ Jira（Data Center は REST API v2、Cloud は REST API v3）に対して読み�
   - Cloud: `JIRA_EMAIL` ＋ `JIRA_API_TOKEN`（Basic 認証）
   - 版の指定: `JIRA_EDITION=dc|cloud`（任意）。未指定なら、URL が `*.atlassian.net` のとき Cloud、それ以外で PAT があれば DC、メール＋トークンがあれば Cloud と判定する。
 - PAT・API トークン・メールアドレスなどの秘密の値を、チャット・ファイル・コミット・チケットに書かない。
-- 見える範囲は認証ユーザーの権限の範囲だけである。一覧に出ないことは「存在しない」ことと区別できない。報告ではこの前提を落とさない。
+- 対象を課題キーで限定できる（任意）。一覧系コマンドの `--keys ABC-1,ABC-2`、または環境変数 `JIRA_ISSUE_KEYS`（カンマ区切り。`--keys` が優先）で、`key in (...)` を条件に AND で足す。指定しなければ限定しない。キーは形式検証を通ったものだけを JQL に入れる（不正なキーが混ざればエラーで止まる）。
+- 見える範囲は認証ユーザーの権限の範囲だけである。一覧に出ないことは「存在しない」ことと区別できない。報告ではこの前提を落とさない。キーで限定した場合は、その旨も報告に明記する。
 - 安全策: リダイレクト先が別ホスト、または https から http への降格の場合は認証情報を送らずに中断する。http(s) 以外へは転送しない。応答本文の上限は 32 MB で、宣言長に満たない切断応答は成功と扱わない。エラー抜粋からは秘密の値を取り除く。`JIRA_BASE_URL` が http://（localhost を除く）なら平文警告を出す。
 
 ## 手順 0: 接続確認（必ず最初に行う）
@@ -53,14 +54,14 @@ python scripts/jira.py check
 
 ```bash
 python scripts/jira.py check
-python scripts/jira.py my-issues [--all] [--limit N] [--json]
-python scripts/jira.py search --jql "..." [--limit N] [--json]
+python scripts/jira.py my-issues [--all] [--keys ABC-1,ABC-2] [--limit N] [--json]
+python scripts/jira.py search --jql "..." [--keys ABC-1,ABC-2] [--limit N] [--json]
 python scripts/jira.py issue KEY [--comments 5] [--json]
-python scripts/jira.py project KEY
-python scripts/jira.py overdue [--project KEY | --all] [--limit N] [--json]
-python scripts/jira.py stale [--days 14] [--project KEY | --all] [--limit N] [--json]
-python scripts/jira.py standup [--limit N] [--json]
-python scripts/jira.py weekly [--project KEY] [--limit N] [--json]
+python scripts/jira.py project KEY [--keys ABC-1,ABC-2]
+python scripts/jira.py overdue [--project KEY | --all] [--keys ABC-1,ABC-2] [--limit N] [--json]
+python scripts/jira.py stale [--days 14] [--project KEY | --all] [--keys ABC-1,ABC-2] [--limit N] [--json]
+python scripts/jira.py standup [--keys ABC-1,ABC-2] [--limit N] [--json]
+python scripts/jira.py weekly [--project KEY] [--keys ABC-1,ABC-2] [--limit N] [--json]
 ```
 
 共通: `--json` で整形済みの JSON を出す。

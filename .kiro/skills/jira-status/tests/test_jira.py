@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -71,6 +72,17 @@ ADF_BODY = {
 ADF_TEXT = "進捗は順調です。\n次の確認は来週です。\n以上です。"
 
 
+def filter_by_keys(issues, jql):
+    """Fixture-side filtering: honour the helper's `key in (...)`
+    clause the way a real Jira would, so tests prove end-to-end
+    narrowing instead of only checking the JQL text."""
+    m = re.search(r"key in \(([^)]*)\)", jql)
+    if not m:
+        return issues
+    keys = {k.strip() for k in m.group(1).split(",")}
+    return [i for i in issues if i["key"] in keys]
+
+
 def dc_issue_detail():
     raw = make_issue("ABC-1", "最初の課題", duedate="2026-11-10")
     raw["fields"]["description"] = "DC の平文の説明です。"
@@ -118,10 +130,14 @@ class DcHandler(BaseHTTPRequestHandler):
             self.send_json({"version": "9.12.0", "deploymentType": "Server"})
         elif path == "/rest/api/2/search":
             jql = qs.get("jql", [""])[0]
+            pool = filter_by_keys(DC_ISSUES, jql)
             max_results = int(qs.get("maxResults", ["100"])[0])
             if max_results == 0:
-                # count query (project command): deterministic per category
-                if 'statusCategory = "To Do"' in jql:
+                # count query (project command): deterministic per
+                # category; with a key filter, the filtered pool size
+                if "key in (" in jql:
+                    total = len(pool)
+                elif 'statusCategory = "To Do"' in jql:
                     total = 2
                 elif 'statusCategory = "In Progress"' in jql:
                     total = 1
@@ -137,8 +153,8 @@ class DcHandler(BaseHTTPRequestHandler):
             # requested maxResults=100: the helper must advance startAt
             # by the number actually returned until it reaches total.
             start = int(qs.get("startAt", ["0"])[0])
-            page = DC_ISSUES[start:start + 2]
-            self.send_json({"total": len(DC_ISSUES), "startAt": start,
+            page = pool[start:start + 2]
+            self.send_json({"total": len(pool), "startAt": start,
                             "maxResults": 2, "issues": page})
         elif path == "/rest/api/2/issue/ABC-1":
             self.send_json(dc_issue_detail())
@@ -206,16 +222,18 @@ class CloudHandler(BaseHTTPRequestHandler):
         elif path == "/rest/api/3/serverInfo":
             self.send_json({"version": "1001.0.0", "deploymentType": "Cloud"})
         elif path == "/rest/api/3/search/jql":
-            # nextPageToken paging: page 1 -> 2 issues + token,
-            # page 2 (with the token) -> 1 issue + isLast.
+            # nextPageToken paging over the (possibly key-filtered)
+            # pool: pages of 2, the token is the next start index.
+            jql = qs.get("jql", [""])[0]
+            pool = filter_by_keys(CLOUD_ISSUES, jql)
             token = qs.get("nextPageToken", [None])[0]
-            if token is None:
-                self.send_json({"issues": CLOUD_ISSUES[:2],
-                                "isLast": False, "nextPageToken": "tok2"})
-            elif token == "tok2":
-                self.send_json({"issues": CLOUD_ISSUES[2:], "isLast": True})
-            else:
-                self.send_json({"error": "bad token"}, 400)
+            start = int(token) if token else 0
+            page = pool[start:start + 2]
+            is_last = start + 2 >= len(pool)
+            resp = {"issues": page, "isLast": is_last}
+            if not is_last:
+                resp["nextPageToken"] = str(start + 2)
+            self.send_json(resp)
         elif path == "/rest/api/3/issue/XYZ-1":
             self.send_json(cloud_issue_detail())
         else:
@@ -236,7 +254,7 @@ def run_helper(env, *argv):
 def clean_env():
     env = dict(os.environ)
     for key in ("JIRA_BASE_URL", "JIRA_PAT", "JIRA_EMAIL",
-                "JIRA_API_TOKEN", "JIRA_EDITION"):
+                "JIRA_API_TOKEN", "JIRA_EDITION", "JIRA_ISSUE_KEYS"):
         env.pop(key, None)
     return env
 
@@ -291,10 +309,12 @@ def redirect_tests(dc_port):
             parsed = urlparse(self.path)
             port_a = self.server.server_address[1]
             if parsed.path == "/rest/api/2/myself":
-                # mode is chosen by the caller's base path marker below
-                if getattr(self.server, "mode", "same") == "same":
+                mode = getattr(self.server, "mode", "same")
+                if mode == "same":
                     self.redirect(
                         f"http://127.0.0.1:{port_a}/rest/api/2/myself-real")
+                elif mode == "scheme":
+                    self.redirect("ftp://127.0.0.1:9/rest/api/2/myself")
                 else:
                     self.redirect(
                         f"http://127.0.0.1:{port_b}/rest/api/2/myself")
@@ -333,6 +353,13 @@ def redirect_tests(dc_port):
     assert b_hits == [], b_hits
     print("redirect cross-host drop OK")
 
+    # non-http(s) scheme: refused outright
+    server_a.mode = "scheme"
+    p = run_helper(env, "check")
+    assert p.returncode == 1, (p.returncode, p.stdout, p.stderr)
+    assert "http(s) 以外" in p.stderr, p.stderr
+    print("redirect non-http scheme refusal OK")
+
     server_a.shutdown()
     server_b.shutdown()
 
@@ -367,6 +394,40 @@ def main():
     assert p.returncode == 0, p.stderr
     assert len(json.loads(p.stdout)) == 3
     print("dc search OK")
+
+    # --keys narrows the result server-side (fixture honours key in (...))
+    p = run_helper(env, "my-issues", "--keys", "ABC-2,ABC-3", "--json")
+    assert p.returncode == 0, p.stderr
+    assert [i["key"] for i in json.loads(p.stdout)] == ["ABC-2", "ABC-3"]
+    print("dc --keys OK")
+
+    # JIRA_ISSUE_KEYS works as the default; --keys overrides it
+    env_keys = dict(env)
+    env_keys["JIRA_ISSUE_KEYS"] = "ABC-1"
+    p = run_helper(env_keys, "my-issues", "--json")
+    assert p.returncode == 0, p.stderr
+    assert [i["key"] for i in json.loads(p.stdout)] == ["ABC-1"]
+    p = run_helper(env_keys, "my-issues", "--keys", "ABC-3", "--json")
+    assert p.returncode == 0, p.stderr
+    assert [i["key"] for i in json.loads(p.stdout)] == ["ABC-3"]
+    print("dc JIRA_ISSUE_KEYS + override OK")
+
+    # search: the user JQL is parenthesised before AND-ing the key
+    # clause, and an ORDER BY in it stays at the end
+    p = run_helper(env, "search", "--jql",
+                   "project = ABC ORDER BY duedate ASC",
+                   "--keys", "ABC-2", "--json")
+    assert p.returncode == 0, p.stderr
+    assert [i["key"] for i in json.loads(p.stdout)] == ["ABC-2"]
+    print("dc search --keys with ORDER BY OK")
+
+    # malformed / hostile keys are rejected before any JQL is built:
+    # no number part, and a JQL-injection attempt
+    for bad in ("ABC", "ABC-1) OR (1=1", "ABC-1;DELETE"):
+        p = run_helper(env, "my-issues", "--keys", bad, "--json")
+        assert p.returncode == 1, (bad, p.returncode, p.stdout, p.stderr)
+        assert "形式が不正" in p.stderr, (bad, p.stderr)
+    print("dc malformed key rejection OK")
 
     # issue detail with plain-text comments (DC)
     p = run_helper(env, "issue", "ABC-1", "--json")
@@ -444,6 +505,12 @@ def main():
     issues = json.loads(p.stdout)
     assert [i["key"] for i in issues] == ["XYZ-1", "XYZ-2", "XYZ-3"], issues
     print("cloud paging (nextPageToken) OK")
+
+    # Cloud --keys narrows through the same clause
+    p = run_helper(env_c, "my-issues", "--keys", "XYZ-2", "--json")
+    assert p.returncode == 0, p.stderr
+    assert [i["key"] for i in json.loads(p.stdout)] == ["XYZ-2"]
+    print("cloud --keys OK")
 
     # ADF extraction for description and comments
     p = run_helper(env_c, "issue", "XYZ-1", "--json")
