@@ -1,0 +1,131 @@
+name: Sync mirror and release
+
+# Keeps the Kiro mirror (.kiro/skills/jira-status) byte-identical to the
+# canonical skill (.agents/skills/jira-status), and creates a GitHub
+# Release whenever the version in SKILL.md metadata has no release yet.
+#
+# Flow after a push that touches the canonical skill:
+#   1. sync job: regenerate the mirror, run the fixture tests against both
+#      locations, and commit the mirror if it changed.
+#   2. release job: if v<version> has no release yet, verify parity, re-run
+#      the tests, push the tag v<version>, and create the release with the
+#      CHANGELOG section as notes.
+# The sync commit touches only .kiro/**, which is outside the paths filter,
+# and pushes made with GITHUB_TOKEN do not retrigger workflows, so this
+# cannot loop.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".agents/skills/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-and-release
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Read version from SKILL.md metadata
+        id: ver
+        run: |
+          V=$(python3 - <<'PY'
+          import re
+          text = open(".agents/skills/jira-status/SKILL.md", encoding="utf-8").read()
+          m = re.search(r'^\s+version:\s*"([^"]+)"', text, re.M)
+          print(m.group(1) if m else "")
+          PY
+          )
+          if [ -z "$V" ]; then
+            echo "version not found in SKILL.md metadata" >&2
+            exit 1
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Skill version: $V"
+      - name: Regenerate mirror from canonical
+        run: python tools/sync_mirror.py
+      - name: Verify parity
+        run: python tools/sync_mirror.py --check
+      - name: Fixture tests (canonical and mirror)
+        run: |
+          JIRA_SKILL_DIR=.agents/skills/jira-status python .agents/skills/jira-status/tests/test_jira.py
+          JIRA_SKILL_DIR=.kiro/skills/jira-status python .kiro/skills/jira-status/tests/test_jira.py
+      - name: Commit mirror if changed
+        run: |
+          if [ -n "$(git status --porcelain -- .kiro)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .kiro
+            git commit -m "chore: sync .kiro mirror from canonical"
+            git push
+          else
+            echo "Mirror already in sync; nothing to commit"
+          fi
+
+  release:
+    needs: sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check whether this version already has a release
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ needs.sync.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release v${{ needs.sync.outputs.version }} already exists; skipping"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify parity and run fixture tests
+        if: steps.exists.outputs.exists == 'false'
+        run: |
+          python tools/sync_mirror.py --check
+          JIRA_SKILL_DIR=.agents/skills/jira-status python .agents/skills/jira-status/tests/test_jira.py
+          JIRA_SKILL_DIR=.kiro/skills/jira-status python .kiro/skills/jira-status/tests/test_jira.py
+      - name: Extract release notes from CHANGELOG
+        if: steps.exists.outputs.exists == 'false'
+        run: |
+          python3 - <<'PY'
+          import re
+          ver = "${{ needs.sync.outputs.version }}"
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          m = re.search(r"^## " + re.escape(ver) + r"\b.*?(?=^## |\Z)", text, re.M | re.S)
+          notes = m.group(0).strip() if m else f"Release v{ver}"
+          open("release-notes.md", "w", encoding="utf-8").write(notes + "\n")
+          print(notes)
+          PY
+      - name: Push tag if missing
+        if: steps.exists.outputs.exists == 'false'
+        run: |
+          if git rev-parse "v${{ needs.sync.outputs.version }}" >/dev/null 2>&1; then
+            echo "Tag v${{ needs.sync.outputs.version }} already exists"
+          else
+            git tag "v${{ needs.sync.outputs.version }}"
+            git push origin "v${{ needs.sync.outputs.version }}"
+            echo "Pushed tag v${{ needs.sync.outputs.version }}"
+          fi
+      - name: Create release
+        if: steps.exists.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "v${{ needs.sync.outputs.version }}" --title "v${{ needs.sync.outputs.version }}" --notes-file release-notes.md
