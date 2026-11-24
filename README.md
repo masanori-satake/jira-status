@@ -53,36 +53,49 @@ python .agents/skills/jira-status/scripts/install.py --workspace .
 python .agents/skills/jira-status/scripts/install.py --workspace . --check
 ```
 
-リンクが使えない環境向けに `--mode copy` もあり、`--check` がファイル集合と SHA-256 で同一性を検証します。同梱のフィクスチャテストは配置先を指定して実行できるので（`JIRA_SKILL_DIR=<配置先> python tests/test_jira.py`）、両方で同じ動きになることを実際に確かめられます。保守ルールの全文は [MAINTAINING.md](MAINTAINING.md) にあります。
+リンクが使えない環境向けに `--mode copy` もあり、`--check` がファイル集合と SHA-256 で同一性を検証します。同梱のフィクスチャテストは配置先を指定して実行できるので（PowerShell では `$env:JIRA_SKILL_DIR="<配置先>"; python tests/test_jira.py`、bash では `JIRA_SKILL_DIR=<配置先> python tests/test_jira.py`）、両方で同じ動きになることを実際に確かめられます。保守ルールの全文は [MAINTAINING.md](MAINTAINING.md) にあります。
 
 ## 初期設定
 
-1. 認証情報を用意します。
+利用環境は主に Windows 11 を想定しています。以後のコマンド例の `python` は、Python ランチャーを使う環境では `py` に読み替えてください。
+
+1. Python 3.9 以降を用意します。python.org のインストーラか Microsoft Store から入れられます。python.org のインストーラでは、最初の画面で「Add python.exe to PATH」にチェックを入れてください。
+2. 認証情報を用意します。
    - Data Center: プロフィール → Personal access tokens から、この用途専用のトークンを発行します。
    - Cloud: Atlassian アカウントの API トークンを発行し、ログインに使うメールアドレスと組み合わせます。
-2. エディタを起動するシェルで環境変数を設定します。PowerShell でそのセッションだけに設定する例（Data Center）:
+3. 環境変数を設定します。**推奨は Windows のユーザー環境変数**です。スタートメニューで「環境変数」と検索して「環境変数を編集」を開き、「（ユーザー名）のユーザー環境変数」に次を追加します。
+
+   | 変数名 | 値 |
+   |---|---|
+   | `JIRA_BASE_URL` | Jira のルート URL |
+   | `JIRA_PAT` | Data Center の場合: 発行した PAT |
+   | `JIRA_EMAIL` | Cloud の場合: メールアドレス |
+   | `JIRA_API_TOKEN` | Cloud の場合: 発行した API トークン |
+
+   設定したら、エディタ（VS Code / Kiro）を**再起動**してください。再起動後に起動したエディタからは、エージェントも含めて環境変数が読めるようになります。
+
+   一時的に試すだけなら、PowerShell でそのセッションだけに設定することもできます。ただしこの方法では、**その PowerShell からエディタを起動した場合にだけ**エディタ側へ渡ります（スタートメニューから起動したエディタには渡りません）。
 
 ```powershell
+# Data Center の場合
 $env:JIRA_BASE_URL = "https://（JiraのURL）"
 $env:JIRA_PAT = "（発行したPAT）"
-```
-
-Cloud の場合は `JIRA_PAT` の代わりに次を設定します。
-
-```powershell
+# Cloud の場合は JIRA_PAT の代わりに次の2つ
 $env:JIRA_EMAIL = "（メールアドレス）"
 $env:JIRA_API_TOKEN = "（発行したAPIトークン）"
 ```
 
-`JIRA_BASE_URL` は Jira のルート URL（コンテキストパスを含む、末尾に `/rest` は付けない）です。**末尾のスラッシュは、あってもなくても構いません。** ヘルパーが末尾のスラッシュを取り除いてから接続します。版は URL と認証情報から自動判定しますが、`JIRA_EDITION=dc|cloud` で明示もできます。
+   macOS / Linux では、シェルの `export JIRA_BASE_URL=...` のように設定します（変数名は同じです）。
 
-3. 疎通確認（スキルフォルダ `.agents/skills/jira-status/` で実行）:
+`JIRA_BASE_URL` は Jira のルート URL（コンテキストパスを含む、末尾に `/rest` は付けない）です。**末尾のスラッシュは、あってもなくても構いません。** ヘルパーが末尾のスラッシュを取り除いてから接続します。版は URL と認証情報から自動判定しますが、`JIRA_EDITION=dc|cloud` で明示もできます。対象キーを常時絞りたい場合は `JIRA_ISSUE_KEYS`（カンマ区切り）も同じ場所に設定できます。
 
-```bash
+4. 疎通確認（スキルフォルダ `.agents/skills/jira-status/` で、PowerShell から実行）:
+
+```powershell
 python scripts/jira.py check
 ```
 
-接続先の版（DC／Cloud）とサーバーの版数、誰として認証されたかが返れば準備完了です。あとはエージェントに頼むだけです。
+接続先の版（DC／Cloud）とサーバーの版数、誰として認証されたかが返れば準備完了です。「環境変数が設定されていません」と出る場合は、設定した場所とエディタの再起動（PowerShell 方式なら起動経路）を見直してください。あとはエージェントに頼むだけです。
 
 ユースケースごとの詳細なプロンプト（朝の確認、朝会、週次報告、期限超過の掘り下げなど、そのまま貼って使える形）は [ユースケース別プロンプト集](docs/use-cases.md) にあります。
 

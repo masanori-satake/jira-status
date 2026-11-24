@@ -32,7 +32,7 @@ python .agents/skills/jira-status/scripts/install.py --workspace .
 
 - 既定はリンク方式（Windows はジャンクション、POSIX はシンボリックリンク）で、実体は正本だけです。正本を入れ替えれば、リンク先もそのまま追随します。
 - リンクが使えない環境では `--mode copy` を使い、`install.py --check` で同一性を検証します。
-- 「同じ動き」の担保は、同一性検証に加えてフィクスチャテストです。任意の配置先を指定して実行できます: `JIRA_SKILL_DIR=<配置先> python tests/test_jira.py`（tests は正本フォルダ内にあります）。テストはフィクスチャサーバーだけで検証し、実際の Jira には接続しません。
+- 「同じ動き」の担保は、同一性検証に加えてフィクスチャテストです。任意の配置先を指定して実行できます（PowerShell: `$env:JIRA_SKILL_DIR="<配置先>"; python tests/test_jira.py`／bash: `JIRA_SKILL_DIR=<配置先> python tests/test_jira.py`。tests は正本フォルダ内にあります）。テストはフィクスチャサーバーだけで検証し、実際の Jira には接続しません。
 
 ## リリース手順（GitHub Actions で自動化）
 
