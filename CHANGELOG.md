@@ -1,5 +1,9 @@
 # 変更履歴
 
+## 1.2.2 — 2026-11-25
+
+- `.gitattributes` を追加し、改行コードを全環境で LF に固定した（`* text=auto eol=lf`）。Windows の Git（`core.autocrlf=true`）で clone すると全ファイルが CRLF でチェックアウトされ、pre-commit の mixed-line-ending が LF に書き戻すため、実行直後に全ファイルが変更扱いになっていた。なお、この問題は `.gitignore` では直らない（`.gitignore` は未追跡ファイルの除外専用で、追跡済みファイルの改行変換には効かない）。スキルの動作は変わらない。
+
 ## 1.2.1 — 2026-11-25
 
 - `.pre-commit-config.yaml` を追加し、pre-commit.ci で実行できるようにした。設定は他のプロジェクトと統一している（pre-commit-hooks v6.0.0 の基本セット＋Python 健全性チェック、Ruff v0.17.3）。Ruff のルール方針は C2M-Export の `ruff.toml` と同一とし、`ruff.toml` を追加した（対象は Python 3.9、UP031 のみ %-整形の統一使用を理由に対象外）。

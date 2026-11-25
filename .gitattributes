@@ -1,0 +1,5 @@
+# 改行コードはすべての環境で LF に固定する。
+# Windows の Git（core.autocrlf=true）で clone しても CRLF 化させないため。
+# これがないと、pre-commit の mixed-line-ending（--fix=lf）が
+# チェックアウト直後の全ファイルを書き戻し、全ファイルが変更扱いになる。
+* text=auto eol=lf

@@ -48,7 +48,7 @@ python .agents/skills/jira-status/scripts/install.py --workspace .
 3. コミットして GitHub に push する（ミラーの再生成はワークフローがやるので、ローカルで `sync_mirror.py` を回し忘れてもリリース前に揃います）。
 4. 利用側は、このリポジトリを pull するだけです。チェックアウト構成のため、追加の配置作業はありません。
 
-コード整形と健全性チェックは、リポジトリ直下の `.pre-commit-config.yaml`（pre-commit.ci でも実行される、他のプロジェクトと統一した設定）と `ruff.toml` が担います。フックが自動修正を入れた場合は、その差分も含めてコミットします。
+コード整形と健全性チェックは、リポジトリ直下の `.pre-commit-config.yaml`（pre-commit.ci でも実行される、他のプロジェクトと統一した設定）と `ruff.toml` が担います。フックが自動修正を入れた場合は、その差分も含めてコミットします。改行コードは `.gitattributes` で LF に固定しています（Windows の `core.autocrlf=true` でも CRLF 化させないため）。
 
 ワークフローを手動実行（workflow_dispatch）すると、その時点の版でタグとリリースが無ければ作成します。ワークフローが使えない場合の手動手順は、従来どおり `tools/sync_mirror.py` の再生成と `--check`、両配置でのテスト、版マーカーと CHANGELOG の更新、タグとリリースの手動作成です。
 
