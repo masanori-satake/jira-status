@@ -618,7 +618,22 @@ def cmd_weekly(cfg, args):
 # ---------------------------------------------------------------- 入口
 
 
+def _force_utf8_stdio():
+    """標準出力・標準エラーを UTF-8 に固定する。
+
+    Windows では Python の標準出力がコンソールのコードページ（cp932）に
+    なり、日本語が文字化けしたり、cp932 に無い文字で落ちたりする。
+    出力は常に UTF-8 とし、表示側（ターミナル）の都合と切り離す。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
 def main(argv=None):
+    _force_utf8_stdio()
     parser = argparse.ArgumentParser(description="Jira 課題確認（読み取り専用）")
     sub = parser.add_subparsers(dest="command", required=True)
 

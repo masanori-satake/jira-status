@@ -572,6 +572,16 @@ def main():
     assert "customfield_10001" in p.stdout and "cf[10001]" in p.stdout, p.stdout
     print("dc fields OK")
 
+    # stdout stays UTF-8 even when the ambient encoding is cp932
+    # (Windows console code page): raw bytes must decode as UTF-8
+    env_cp = dict(env)
+    env_cp["PYTHONIOENCODING"] = "cp932"
+    proc = subprocess.run([sys.executable, HELPER, "fields"], capture_output=True, env=env_cp, timeout=60)
+    assert proc.returncode == 0, proc.stderr
+    text = proc.stdout.decode("utf-8")  # raises if the bytes came out as cp932
+    assert "テキスト（複数行）" in text, text
+    print("utf-8 stdio under cp932 ambient OK")
+
     # wrong token -> 401 surfaces as an API error, without leaking it
     env_bad = dict(env)
     env_bad["JIRA_PAT"] = "WRONGTOKEN"

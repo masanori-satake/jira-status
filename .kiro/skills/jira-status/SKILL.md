@@ -2,7 +2,7 @@
 name: jira-status
 description: Jira（Data Center / Cloud）を REST API で読み取り専用に使い、担当課題の一覧、プロジェクトの概況、期限超過・停滞課題の検出、JQL 検索、課題詳細とコメントの確認、朝会（standup）と週次報告の材料集め、カスタムフィールドを含むフィールド定義の収集を行うときに使う。期日・ステータス・コメントを中心に課題の確認を、Web 画面を行ったり来たりせずに済ませたいときに使う。
 metadata:
-  version: "1.2.2"
+  version: "1.2.3"
 ---
 
 # Jira 課題確認
@@ -54,6 +54,14 @@ python scripts/jira.py check
 7. **フィールドの下調べ**: `fields` でフィールド定義（既定はカスタムフィールドのみ、`--all` でシステムフィールドも含む）を収集する。各フィールドの ID、名前、種類（schema のデータ型とカスタム種別）、JQL で使える句名が分かる。カスタムフィールドの棚卸しや、JQL を書く前の下調べに使う。プロジェクト×課題タイプごとの必須・表示はこの範囲外（createmeta は扱わない）。
 
 コマンドとエンドポイントの対応は `references/api-map.md`、集計の定義と読み方は `references/check-recipes.md`、DC と Cloud の差は `references/cloud-differences.md` を参照。
+
+## Windows PowerShell でのエンコーディング注意
+
+ヘルパーの出力は常に UTF-8 である（標準出力を UTF-8 に固定している）。それでも、Windows PowerShell 5.1 のコンソール（コードページ cp932）では、日本語が文字化けして**見える**場合がある。これは表示側の問題で、データ自体は正しく処理されている。
+
+- コンソールで文字化けしたら、まず表示の問題と判断する。スクリプトの不具合を疑って新規スクリプトを作ったり、JSON のパース方法を変えたりする必要はない。
+- 対処の順番: (1) Windows Terminal や PowerShell 7 以降で実行する。(2) 実行前に `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()` と `$OutputEncoding = [System.Text.UTF8Encoding]::new()` を設定する（PowerShell 7 では有効。5.1 では表示が直らない場合がある）。(3) ファイルに保存してエディタで開く: `python scripts/jira.py my-issues --json | Out-File -Encoding utf8 issues.json`（`>` の単純リダイレクトは PowerShell 5.1 では UTF-16 になるため、JSON を扱う場合は `Out-File -Encoding utf8` を使う）。
+- エージェントがターミナル経由で出力を読む場合は、バイト列は UTF-8 として処理する。
 
 ## 報告の約束
 

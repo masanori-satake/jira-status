@@ -102,6 +102,14 @@ python scripts/jira.py check
 
 接続先の版（DC／Cloud）とサーバーの版数、誰として認証されたかが返れば準備完了です。「環境変数が設定されていません」と出る場合は、設定した場所とエディタの再起動（PowerShell 方式なら起動経路）を見直してください。あとはエージェントに頼むだけです。
 
+#### Windows PowerShell で日本語が文字化けする場合
+
+ヘルパーの出力は UTF-8 に固定されています。PowerShell 5.1 のコンソール（コードページ cp932）では日本語が文字化けして見えることがありますが、表示上の問題で、データ自体は正しく処理されています。新しくスクリプトを作る必要はありません。次のいずれかで対応してください。
+
+1. Windows Terminal や PowerShell 7 以降で実行する
+2. 実行前にエンコーディングを設定する: `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()` と `$OutputEncoding = [System.Text.UTF8Encoding]::new()`（PowerShell 7 では有効。5.1 では表示が直らない場合があります）
+3. ファイルに保存してエディタで開く（JSON の場合）: `python scripts/jira.py my-issues --json | Out-File -Encoding utf8 issues.json`（`>` の単純リダイレクトは PowerShell 5.1 では UTF-16 で書かれるため使いません）
+
 ユースケースごとの詳細なプロンプト（朝の確認、朝会、週次報告、期限超過の掘り下げなど、そのまま貼って使える形）は [ユースケース別プロンプト集](docs/use-cases.md) にあります。
 
 ## ヘルパーのコマンド

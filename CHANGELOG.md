@@ -1,5 +1,11 @@
 # 変更履歴
 
+## 1.2.3 — 2026-11-25
+
+- Windows PowerShell（cp932 コンソール）での日本語文字化けへの対策。実利用で発生した事象（Notion「jira-status改善メモ」）を受けた改善。
+  - コード側: ヘルパーの標準出力・標準エラーを UTF-8 に固定した（`reconfigure`）。周囲のエンコーディングが cp932 でも出力バイト列が UTF-8 になることを、フィクスチャテスト（`PYTHONIOENCODING=cp932`）で検証する。
+  - 文書側: SKILL.md に「Windows PowerShell でのエンコーディング注意」を追加し、check-recipes.md の「限界」と README の初期設定にも対処を明記した。文字化けは表示側の問題であり、新規スクリプトの作成は不要であること、対処の順番（Windows Terminal／PowerShell 7、`OutputEncoding` の設定、`Out-File -Encoding utf8` での保存）を案内する。なおメモの原案にあった `>` リダイレクトの例は、PowerShell 5.1 では UTF-16 で書かれるため採用しなかった。
+
 ## 1.2.2 — 2026-11-25
 
 - `.gitattributes` を追加し、改行コードを全環境で LF に固定した（`* text=auto eol=lf`）。Windows の Git（`core.autocrlf=true`）で clone すると全ファイルが CRLF でチェックアウトされ、pre-commit の mixed-line-ending が LF に書き戻すため、実行直後に全ファイルが変更扱いになっていた。なお、この問題は `.gitignore` では直らない（`.gitignore` は未追跡ファイルの除外専用で、追跡済みファイルの改行変換には効かない）。スキルの動作は変わらない。
