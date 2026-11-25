@@ -25,6 +25,7 @@ Usage:
 --check compares every installed location against the canonical by file set
 and SHA-256, and exits 1 on any drift. Standard library only.
 """
+
 import argparse
 import hashlib
 import os
@@ -83,7 +84,8 @@ def make_link(source, dest):
         # Directory junction: no administrator rights needed.
         proc = subprocess.run(
             ["cmd", "/c", "mklink", "/J", dest, source],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         if proc.returncode != 0:
             raise RuntimeError(f"mklink failed: {proc.stdout} {proc.stderr}")
@@ -159,11 +161,17 @@ def check_one(source, dest):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Install the jira-status skill from one canonical copy")
     parser.add_argument("--workspace", default=".", help="Workspace root (default: current directory)")
-    parser.add_argument("--source", default=None,
-                        help="Canonical skill directory (default: <workspace>/.agents/skills/jira-status if it exists, else the directory containing this script's skill)")
+    parser.add_argument(
+        "--source",
+        default=None,
+        help="Canonical skill directory (default: <workspace>/.agents/skills/jira-status if it exists, else the directory containing this script's skill)",
+    )
     parser.add_argument("--mode", choices=["link", "copy"], default="link")
-    parser.add_argument("--with-github", action="store_true",
-                        help="Also place .github/skills/jira-status (not needed for Copilot, which reads .agents/skills directly)")
+    parser.add_argument(
+        "--with-github",
+        action="store_true",
+        help="Also place .github/skills/jira-status (not needed for Copilot, which reads .agents/skills directly)",
+    )
     parser.add_argument("--force", action="store_true", help="Replace conflicting existing locations")
     parser.add_argument("--check", action="store_true", help="Verify parity only; exit 1 on drift")
     args = parser.parse_args(argv)

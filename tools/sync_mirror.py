@@ -13,6 +13,7 @@ Edit only the canonical. Run this tool before committing:
 
 Standard library only.
 """
+
 import argparse
 import hashlib
 import os

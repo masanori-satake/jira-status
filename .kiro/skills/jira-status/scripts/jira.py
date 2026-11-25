@@ -23,6 +23,7 @@ Python 標準ライブラリのみ。HTTP は GET だけを使う。
   python scripts/jira.py weekly [--project ABC]
   python scripts/jira.py fields [--all] [--json]
 """
+
 import argparse
 import base64
 import json
@@ -35,14 +36,13 @@ import urllib.request
 from datetime import date
 
 MAX_BODY_BYTES = 32 * 1024 * 1024  # 応答本文の上限
-ERROR_EXCERPT_BYTES = 8 * 1024     # エラー表示に使う抜粋の上限
+ERROR_EXCERPT_BYTES = 8 * 1024  # エラー表示に使う抜粋の上限
 MAX_REDIRECTS = 5
 PAGE_SIZE = 100
-COUNT_CAP = 1000                   # 件数数え上げの打ち切り（Cloud のページング用）
+COUNT_CAP = 1000  # 件数数え上げの打ち切り（Cloud のページング用）
 
 ISSUE_FIELDS = (
-    "summary,status,assignee,reporter,priority,duedate,created,updated,"
-    "issuetype,resolutiondate,labels,components"
+    "summary,status,assignee,reporter,priority,duedate,created,updated,issuetype,resolutiondate,labels,components"
 )
 
 
@@ -56,6 +56,7 @@ class ApiError(Exception):
 
 # ---------------------------------------------------------------- 接続設定
 
+
 class Config:
     def __init__(self):
         base = os.environ.get("JIRA_BASE_URL", "").strip()
@@ -66,8 +67,7 @@ class Config:
         if parsed.scheme not in ("http", "https") or not parsed.netloc:
             raise ConfigError("JIRA_BASE_URL が URL として解釈できません。")
         if parsed.scheme == "http" and parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
-            print("警告: JIRA_BASE_URL が http:// です。認証情報が平文で流れます。",
-                  file=sys.stderr)
+            print("警告: JIRA_BASE_URL が http:// です。認証情報が平文で流れます。", file=sys.stderr)
 
         self.pat = os.environ.get("JIRA_PAT", "").strip()
         self.email = os.environ.get("JIRA_EMAIL", "").strip()
@@ -85,7 +85,8 @@ class Config:
         else:
             raise ConfigError(
                 "版（DC / Cloud）を判定できません。JIRA_EDITION=dc|cloud を指定するか、"
-                "DC なら JIRA_PAT、Cloud なら JIRA_EMAIL と JIRA_API_TOKEN を設定してください。")
+                "DC なら JIRA_PAT、Cloud なら JIRA_EMAIL と JIRA_API_TOKEN を設定してください。"
+            )
 
         if self.edition == "dc":
             if not self.pat:
@@ -111,6 +112,7 @@ class Config:
 
 # ---------------------------------------------------------------- HTTP 層
 
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     """自動リダイレクトを止め、呼び出し側で1つずつ検証しながらたどる。"""
 
@@ -135,8 +137,7 @@ def _read_bounded(resp, cfg):
     if declared is not None:
         try:
             if int(declared) != len(body):
-                raise ApiError("応答が途中で切断されました（宣言 %s バイト、実績 %d バイト）。"
-                               % (declared, len(body)))
+                raise ApiError("応答が途中で切断されました（宣言 %s バイト、実績 %d バイト）。" % (declared, len(body)))
         except ValueError:
             pass
     return body
@@ -169,8 +170,7 @@ def api_get(cfg, path, params=None):
                 if t.netloc != cur.netloc or (cur.scheme == "https" and t.scheme == "http"):
                     # 別ホスト／https→http 降格では認証情報を送らない。
                     # この CLI は同一インスタンス前提なので、ここで打ち切る。
-                    raise ApiError(
-                        "リダイレクト先が接続先と異なるため中断しました（認証情報を送りません）。")
+                    raise ApiError("リダイレクト先が接続先と異なるため中断しました（認証情報を送りません）。")
                 current = target
                 continue
             excerpt = e.read(ERROR_EXCERPT_BYTES).decode("utf-8", "replace")
@@ -188,6 +188,7 @@ def api_get(cfg, path, params=None):
 
 
 # ---------------------------------------------------------------- データ整形
+
 
 def adf_to_text(node):
     """Cloud の ADF（Atlassian Document Format）から平文を取り出す。"""
@@ -254,8 +255,7 @@ def search_all(cfg, jql, fields=ISSUE_FIELDS, limit=None):
     if cfg.edition == "dc":
         start = 0
         while True:
-            page = api_get(cfg, "/search", {
-                "jql": jql, "startAt": start, "maxResults": PAGE_SIZE, "fields": fields})
+            page = api_get(cfg, "/search", {"jql": jql, "startAt": start, "maxResults": PAGE_SIZE, "fields": fields})
             issues = page.get("issues", [])
             out.extend(normalise_issue(i) for i in issues)
             start += len(issues)
@@ -305,6 +305,7 @@ def count_jql(cfg, jql):
 
 # ---------------------------------------------------------------- 表示
 
+
 def print_issues(issues, as_json):
     if as_json:
         print(json.dumps(issues, ensure_ascii=False, indent=2))
@@ -314,8 +315,7 @@ def print_issues(issues, as_json):
         return
     for i in issues:
         due = i["duedate"] or "—"
-        print("%-14s %-10s 期日:%-10s 担当:%-12s %s"
-              % (i["key"], i["status"], due, i["assignee"], i["summary"]))
+        print("%-14s %-10s 期日:%-10s 担当:%-12s %s" % (i["key"], i["status"], due, i["assignee"], i["summary"]))
 
 
 def _scope(args, mine_default=True):
@@ -382,8 +382,13 @@ CUSTOM_TYPE_LABELS = {
 }
 
 _SCHEMA_TYPE_LABELS = {
-    "string": "文字列", "number": "数値", "date": "日付", "datetime": "日時",
-    "array": "配列", "option": "選択肢", "user": "ユーザー",
+    "string": "文字列",
+    "number": "数値",
+    "date": "日付",
+    "datetime": "日時",
+    "array": "配列",
+    "option": "選択肢",
+    "user": "ユーザー",
 }
 
 
@@ -438,12 +443,15 @@ def cmd_fields(cfg, args):
 
 # ---------------------------------------------------------------- コマンド
 
+
 def cmd_check(cfg, args):
     me = api_get(cfg, "/myself")
     info = api_get(cfg, "/serverInfo")
     print("接続先: %s" % cfg.base_url)
-    print("版: %s（API %s）" % ("Cloud" if cfg.edition == "cloud" else "Data Center",
-                               "v3" if cfg.edition == "cloud" else "v2"))
+    print(
+        "版: %s（API %s）"
+        % ("Cloud" if cfg.edition == "cloud" else "Data Center", "v3" if cfg.edition == "cloud" else "v2")
+    )
     print("サーバー版数: %s" % (info.get("version", "不明")))
     print("ログイン: %s" % (me.get("displayName") or me.get("name") or me.get("accountId", "")))
     return 0
@@ -466,8 +474,7 @@ def cmd_search(cfg, args):
         # ORDER BY があれば、その手前で包む。
         m = re.search(r"\border\s+by\b", jql, re.I)
         if m:
-            jql = "(%s) AND %s %s" % (jql[:m.start()].strip(), kc,
-                                      jql[m.start():].strip())
+            jql = "(%s) AND %s %s" % (jql[: m.start()].strip(), kc, jql[m.start() :].strip())
         else:
             jql = "(%s) AND %s" % (jql, kc)
     print_issues(search_all(cfg, jql, limit=args.limit), args.json)
@@ -475,34 +482,44 @@ def cmd_search(cfg, args):
 
 
 def cmd_issue(cfg, args):
-    raw = api_get(cfg, "/issue/" + urllib.parse.quote(args.key, safe=""),
-                  {"fields": ISSUE_FIELDS + ",comment,description"})
+    raw = api_get(
+        cfg, "/issue/" + urllib.parse.quote(args.key, safe=""), {"fields": ISSUE_FIELDS + ",comment,description"}
+    )
     issue = normalise_issue(raw)
     f = raw.get("fields", {}) or {}
     if args.json:
         comments = (f.get("comment") or {}).get("comments", [])
-        issue["comments"] = [{
-            "author": (c.get("author") or {}).get("displayName", ""),
-            "created": (c.get("created") or "")[:16].replace("T", " "),
-            "body": body_to_text(c.get("body")),
-        } for c in comments[-args.comments:]] if args.comments > 0 else []
+        issue["comments"] = (
+            [
+                {
+                    "author": (c.get("author") or {}).get("displayName", ""),
+                    "created": (c.get("created") or "")[:16].replace("T", " "),
+                    "body": body_to_text(c.get("body")),
+                }
+                for c in comments[-args.comments :]
+            ]
+            if args.comments > 0
+            else []
+        )
         print(json.dumps(issue, ensure_ascii=False, indent=2))
         return 0
     print("%s  %s" % (issue["key"], issue["summary"]))
-    print("種別: %s / ステータス: %s（%s）/ 優先度: %s"
-          % (issue["type"], issue["status"], issue["statusCategory"], issue["priority"]))
+    print(
+        "種別: %s / ステータス: %s（%s）/ 優先度: %s"
+        % (issue["type"], issue["status"], issue["statusCategory"], issue["priority"])
+    )
     print("担当: %s / 報告者: %s" % (issue["assignee"], issue["reporter"]))
-    print("期日: %s / 作成: %s / 更新: %s / 完了: %s"
-          % (issue["duedate"] or "—", issue["created"], issue["updated"],
-             issue["resolved"] or "—"))
+    print(
+        "期日: %s / 作成: %s / 更新: %s / 完了: %s"
+        % (issue["duedate"] or "—", issue["created"], issue["updated"], issue["resolved"] or "—")
+    )
     desc = body_to_text(f.get("description"))
     if desc:
         print("\n説明:\n%s" % desc[:1000])
     comments = (f.get("comment") or {}).get("comments", [])
     if comments and args.comments > 0:
-        print("\nコメント（直近 %d 件 / 全 %d 件）:"
-              % (min(args.comments, len(comments)), len(comments)))
-        for c in comments[-args.comments:]:
+        print("\nコメント（直近 %d 件 / 全 %d 件）:" % (min(args.comments, len(comments)), len(comments)))
+        for c in comments[-args.comments :]:
             author = (c.get("author") or {}).get("displayName", "")
             when = (c.get("created") or "")[:16].replace("T", " ")
             print("\n[%s] %s\n%s" % (when, author, body_to_text(c.get("body"))[:800]))
@@ -513,17 +530,15 @@ def cmd_project(cfg, args):
     key = args.key
     proj = api_get(cfg, "/project/" + urllib.parse.quote(key, safe=""))
     print("%s  %s" % (proj.get("key", key), proj.get("name", "")))
-    base = _join('project = "%s"' % key.replace('"', '\\"'),
-                 key_clause(resolve_keys(args)))
+    base = _join('project = "%s"' % key.replace('"', '\\"'), key_clause(resolve_keys(args)))
     for label, cat in (("未着手", "To Do"), ("進行中", "In Progress"), ("完了", "Done")):
         n, capped = count_jql(cfg, _join(base, 'statusCategory = "%s"' % cat))
         print("%s: %s%s 件" % (label, n, " 以上" if capped else ""))
     today = date.today().isoformat()
-    overdue = search_all(cfg, _join(
-        base, "resolution = Unresolved", 'duedate < "%s"' % today)
-        + " ORDER BY duedate ASC", limit=20)
-    n_over, capped = count_jql(cfg, _join(base, "resolution = Unresolved",
-                                          'duedate < "%s"' % today))
+    overdue = search_all(
+        cfg, _join(base, "resolution = Unresolved", 'duedate < "%s"' % today) + " ORDER BY duedate ASC", limit=20
+    )
+    n_over, capped = count_jql(cfg, _join(base, "resolution = Unresolved", 'duedate < "%s"' % today))
     print("期限超過（未完了）: %s%s 件" % (n_over, " 以上" if capped else ""))
     print_issues(overdue, False)
     return 0
@@ -531,17 +546,19 @@ def cmd_project(cfg, args):
 
 def cmd_overdue(cfg, args):
     today = date.today().isoformat()
-    jql = _join(_scope(args), key_clause(resolve_keys(args)),
-                "resolution = Unresolved",
-                'duedate < "%s"' % today) + " ORDER BY duedate ASC"
+    jql = (
+        _join(_scope(args), key_clause(resolve_keys(args)), "resolution = Unresolved", 'duedate < "%s"' % today)
+        + " ORDER BY duedate ASC"
+    )
     print_issues(search_all(cfg, jql, limit=args.limit), args.json)
     return 0
 
 
 def cmd_stale(cfg, args):
-    jql = _join(_scope(args), key_clause(resolve_keys(args)),
-                "resolution = Unresolved",
-                "updated < -%dd" % args.days) + " ORDER BY updated ASC"
+    jql = (
+        _join(_scope(args), key_clause(resolve_keys(args)), "resolution = Unresolved", "updated < -%dd" % args.days)
+        + " ORDER BY updated ASC"
+    )
     print_issues(search_all(cfg, jql, limit=args.limit), args.json)
     return 0
 
@@ -562,8 +579,7 @@ def cmd_standup(cfg, args):
     sections = [
         ("完了（直近24時間）", _join(me, kc, "resolved >= -1d")),
         ("進行中", _join(me, kc, 'statusCategory = "In Progress"', "resolution = Unresolved")),
-        ("期限超過・今日が期限", _join(me, kc, "resolution = Unresolved",
-                                       'duedate <= "%s"' % today)),
+        ("期限超過・今日が期限", _join(me, kc, "resolution = Unresolved", 'duedate <= "%s"' % today)),
     ]
     for title, jql in sections:
         issues = search_all(cfg, jql + " ORDER BY duedate ASC", limit=args.limit)
@@ -587,8 +603,7 @@ def cmd_weekly(cfg, args):
     sections = [
         ("完了（直近7日）", _join(who, kc, "resolved >= -7d")),
         ("新規（直近7日）", _join(who, kc, "created >= -7d")),
-        ("期限超過（未完了）", _join(who, kc, "resolution = Unresolved",
-                                     'duedate < "%s"' % today)),
+        ("期限超過（未完了）", _join(who, kc, "resolution = Unresolved", 'duedate < "%s"' % today)),
     ]
     for title, jql in sections:
         issues = search_all(cfg, jql + " ORDER BY duedate ASC", limit=args.limit)
@@ -601,6 +616,7 @@ def cmd_weekly(cfg, args):
 
 
 # ---------------------------------------------------------------- 入口
+
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Jira 課題確認（読み取り専用）")
@@ -668,9 +684,15 @@ def main(argv=None):
         print("設定エラー: %s" % e, file=sys.stderr)
         return 2
     handlers = {
-        "check": cmd_check, "my-issues": cmd_my_issues, "search": cmd_search,
-        "issue": cmd_issue, "project": cmd_project, "overdue": cmd_overdue,
-        "stale": cmd_stale, "standup": cmd_standup, "weekly": cmd_weekly,
+        "check": cmd_check,
+        "my-issues": cmd_my_issues,
+        "search": cmd_search,
+        "issue": cmd_issue,
+        "project": cmd_project,
+        "overdue": cmd_overdue,
+        "stale": cmd_stale,
+        "standup": cmd_standup,
+        "weekly": cmd_weekly,
         "fields": cmd_fields,
     }
     try:

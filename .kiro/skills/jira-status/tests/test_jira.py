@@ -6,13 +6,12 @@ import subprocess
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 DC_TOKEN = "TESTPAT-SECRET-12345"
 CLOUD_EMAIL = "test@example.com"
 CLOUD_TOKEN = "TESTAPITOKEN-SECRET-67890"
-CLOUD_BASIC = "Basic " + base64.b64encode(
-    ("%s:%s" % (CLOUD_EMAIL, CLOUD_TOKEN)).encode()).decode()
+CLOUD_BASIC = "Basic " + base64.b64encode(("%s:%s" % (CLOUD_EMAIL, CLOUD_TOKEN)).encode()).decode()
 SECRETS = (DC_TOKEN, CLOUD_TOKEN, CLOUD_BASIC)
 
 SKILL_DIR = os.environ.get(
@@ -22,14 +21,12 @@ SKILL_DIR = os.environ.get(
 HELPER = os.path.join(SKILL_DIR, "scripts", "jira.py")
 
 
-def make_issue(key, summary, status="進行中", category="In Progress",
-               duedate="2026-12-01"):
+def make_issue(key, summary, status="進行中", category="In Progress", duedate="2026-12-01"):
     return {
         "key": key,
         "fields": {
             "summary": summary,
-            "status": {"name": status,
-                       "statusCategory": {"name": category}},
+            "status": {"name": status, "statusCategory": {"name": category}},
             "assignee": {"displayName": "Test User", "name": "test-user"},
             "reporter": {"displayName": "Reporter", "name": "reporter"},
             "priority": {"name": "High"},
@@ -57,52 +54,95 @@ CLOUD_ISSUES = [
 ]
 
 FIELDS = [
-    {"id": "summary", "key": "summary", "name": "Summary", "custom": False,
-     "orderable": True, "navigable": True, "searchable": True,
-     "clauseNames": ["summary"],
-     "schema": {"type": "string", "system": "summary"}},
-    {"id": "customfield_10001", "key": "customfield_10001",
-     "name": "受入基準", "custom": True,
-     "orderable": True, "navigable": True, "searchable": True,
-     "clauseNames": ["cf[10001]", "受入基準"],
-     "schema": {"type": "string",
-                "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textarea",
-                "customId": 10001}},
-    {"id": "customfield_10002", "key": "customfield_10002",
-     "name": "見積り日", "custom": True,
-     "orderable": True, "navigable": True, "searchable": True,
-     "clauseNames": ["cf[10002]", "見積り日"],
-     "schema": {"type": "date",
-                "custom": "com.atlassian.jira.plugin.system.customfieldtypes:datepicker",
-                "customId": 10002}},
-    {"id": "customfield_10003", "key": "customfield_10003",
-     "name": "対象OS", "custom": True,
-     "orderable": True, "navigable": True, "searchable": True,
-     "clauseNames": ["cf[10003]", "対象OS"],
-     "schema": {"type": "array", "items": "option",
-                "custom": "com.atlassian.jira.plugin.system.customfieldtypes:multiselect",
-                "customId": 10003}},
-    {"id": "customfield_10004", "key": "customfield_10004",
-     "name": "外部連携ID", "custom": True,
-     "orderable": False, "navigable": True, "searchable": True,
-     "clauseNames": ["cf[10004]", "外部連携ID"],
-     "schema": {"type": "string",
-                "custom": "com.example.plugin:external-id",
-                "customId": 10004}},
+    {
+        "id": "summary",
+        "key": "summary",
+        "name": "Summary",
+        "custom": False,
+        "orderable": True,
+        "navigable": True,
+        "searchable": True,
+        "clauseNames": ["summary"],
+        "schema": {"type": "string", "system": "summary"},
+    },
+    {
+        "id": "customfield_10001",
+        "key": "customfield_10001",
+        "name": "受入基準",
+        "custom": True,
+        "orderable": True,
+        "navigable": True,
+        "searchable": True,
+        "clauseNames": ["cf[10001]", "受入基準"],
+        "schema": {
+            "type": "string",
+            "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textarea",
+            "customId": 10001,
+        },
+    },
+    {
+        "id": "customfield_10002",
+        "key": "customfield_10002",
+        "name": "見積り日",
+        "custom": True,
+        "orderable": True,
+        "navigable": True,
+        "searchable": True,
+        "clauseNames": ["cf[10002]", "見積り日"],
+        "schema": {
+            "type": "date",
+            "custom": "com.atlassian.jira.plugin.system.customfieldtypes:datepicker",
+            "customId": 10002,
+        },
+    },
+    {
+        "id": "customfield_10003",
+        "key": "customfield_10003",
+        "name": "対象OS",
+        "custom": True,
+        "orderable": True,
+        "navigable": True,
+        "searchable": True,
+        "clauseNames": ["cf[10003]", "対象OS"],
+        "schema": {
+            "type": "array",
+            "items": "option",
+            "custom": "com.atlassian.jira.plugin.system.customfieldtypes:multiselect",
+            "customId": 10003,
+        },
+    },
+    {
+        "id": "customfield_10004",
+        "key": "customfield_10004",
+        "name": "外部連携ID",
+        "custom": True,
+        "orderable": False,
+        "navigable": True,
+        "searchable": True,
+        "clauseNames": ["cf[10004]", "外部連携ID"],
+        "schema": {"type": "string", "custom": "com.example.plugin:external-id", "customId": 10004},
+    },
 ]
 
 
 ADF_BODY = {
-    "type": "doc", "version": 1,
+    "type": "doc",
+    "version": 1,
     "content": [
-        {"type": "paragraph", "content": [
-            {"type": "text", "text": "進捗は順調です。"},
-            {"type": "hardBreak"},
-            {"type": "text", "text": "次の確認は来週です。"},
-        ]},
-        {"type": "paragraph", "content": [
-            {"type": "text", "text": "以上です。"},
-        ]},
+        {
+            "type": "paragraph",
+            "content": [
+                {"type": "text", "text": "進捗は順調です。"},
+                {"type": "hardBreak"},
+                {"type": "text", "text": "次の確認は来週です。"},
+            ],
+        },
+        {
+            "type": "paragraph",
+            "content": [
+                {"type": "text", "text": "以上です。"},
+            ],
+        },
     ],
 }
 ADF_TEXT = "進捗は順調です。\n次の確認は来週です。\n以上です。"
@@ -122,22 +162,29 @@ def filter_by_keys(issues, jql):
 def dc_issue_detail():
     raw = make_issue("ABC-1", "最初の課題", duedate="2026-11-10")
     raw["fields"]["description"] = "DC の平文の説明です。"
-    raw["fields"]["comment"] = {"total": 2, "comments": [
-        {"author": {"displayName": "Reporter"},
-         "created": "2026-11-18T10:00:00.000+0900", "body": "古いコメント"},
-        {"author": {"displayName": "Test User"},
-         "created": "2026-11-20T11:00:00.000+0900", "body": "直近のコメントです。"},
-    ]}
+    raw["fields"]["comment"] = {
+        "total": 2,
+        "comments": [
+            {"author": {"displayName": "Reporter"}, "created": "2026-11-18T10:00:00.000+0900", "body": "古いコメント"},
+            {
+                "author": {"displayName": "Test User"},
+                "created": "2026-11-20T11:00:00.000+0900",
+                "body": "直近のコメントです。",
+            },
+        ],
+    }
     return raw
 
 
 def cloud_issue_detail():
     raw = make_issue("XYZ-1", "Cloud 一件目")
     raw["fields"]["description"] = ADF_BODY
-    raw["fields"]["comment"] = {"total": 1, "comments": [
-        {"author": {"displayName": "Test User"},
-         "created": "2026-11-20T11:00:00.000+0900", "body": ADF_BODY},
-    ]}
+    raw["fields"]["comment"] = {
+        "total": 1,
+        "comments": [
+            {"author": {"displayName": "Test User"}, "created": "2026-11-20T11:00:00.000+0900", "body": ADF_BODY},
+        ],
+    }
     return raw
 
 
@@ -191,9 +238,8 @@ class DcHandler(BaseHTTPRequestHandler):
             # requested maxResults=100: the helper must advance startAt
             # by the number actually returned until it reaches total.
             start = int(qs.get("startAt", ["0"])[0])
-            page = pool[start:start + 2]
-            self.send_json({"total": len(pool), "startAt": start,
-                            "maxResults": 2, "issues": page})
+            page = pool[start : start + 2]
+            self.send_json({"total": len(pool), "startAt": start, "maxResults": 2, "issues": page})
         elif path == "/rest/api/2/issue/ABC-1":
             self.send_json(dc_issue_detail())
         elif path == "/rest/api/2/issue/TRUNC-1":
@@ -268,7 +314,7 @@ class CloudHandler(BaseHTTPRequestHandler):
             pool = filter_by_keys(CLOUD_ISSUES, jql)
             token = qs.get("nextPageToken", [None])[0]
             start = int(token) if token else 0
-            page = pool[start:start + 2]
+            page = pool[start : start + 2]
             is_last = start + 2 >= len(pool)
             resp = {"issues": page, "isLast": is_last}
             if not is_last:
@@ -283,7 +329,10 @@ class CloudHandler(BaseHTTPRequestHandler):
 def run_helper(env, *argv):
     proc = subprocess.run(
         [sys.executable, HELPER, *argv],
-        capture_output=True, text=True, env=env, timeout=120,
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=120,
     )
     for secret in SECRETS:
         assert secret not in proc.stdout, "SECRET LEAKED TO STDOUT"
@@ -293,8 +342,7 @@ def run_helper(env, *argv):
 
 def clean_env():
     env = dict(os.environ)
-    for key in ("JIRA_BASE_URL", "JIRA_PAT", "JIRA_EMAIL",
-                "JIRA_API_TOKEN", "JIRA_EDITION", "JIRA_ISSUE_KEYS"):
+    for key in ("JIRA_BASE_URL", "JIRA_PAT", "JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_EDITION", "JIRA_ISSUE_KEYS"):
         env.pop(key, None)
     return env
 
@@ -351,20 +399,17 @@ def redirect_tests(dc_port):
             if parsed.path == "/rest/api/2/myself":
                 mode = getattr(self.server, "mode", "same")
                 if mode == "same":
-                    self.redirect(
-                        f"http://127.0.0.1:{port_a}/rest/api/2/myself-real")
+                    self.redirect(f"http://127.0.0.1:{port_a}/rest/api/2/myself-real")
                 elif mode == "scheme":
                     self.redirect("ftp://127.0.0.1:9/rest/api/2/myself")
                 else:
-                    self.redirect(
-                        f"http://127.0.0.1:{port_b}/rest/api/2/myself")
+                    self.redirect(f"http://127.0.0.1:{port_b}/rest/api/2/myself")
             elif parsed.path == "/rest/api/2/myself-real":
                 if self.headers.get("Authorization") != "Bearer " + DC_TOKEN:
                     self.send_json({"error": "unauthorized"}, 401)
                     return
                 seen["auth"] = self.headers.get("Authorization")
-                self.send_json({"name": "test-user",
-                                "displayName": "Test User"})
+                self.send_json({"name": "test-user", "displayName": "Test User"})
             elif parsed.path == "/rest/api/2/serverInfo":
                 self.send_json({"version": "9.12.0"})
             else:
@@ -454,9 +499,7 @@ def main():
 
     # search: the user JQL is parenthesised before AND-ing the key
     # clause, and an ORDER BY in it stays at the end
-    p = run_helper(env, "search", "--jql",
-                   "project = ABC ORDER BY duedate ASC",
-                   "--keys", "ABC-2", "--json")
+    p = run_helper(env, "search", "--jql", "project = ABC ORDER BY duedate ASC", "--keys", "ABC-2", "--json")
     assert p.returncode == 0, p.stderr
     assert [i["key"] for i in json.loads(p.stdout)] == ["ABC-2"]
     print("dc search --keys with ORDER BY OK")
@@ -491,8 +534,12 @@ def main():
     print("dc project OK")
 
     # overdue / stale / standup / weekly all run on the fixture
-    for argv in (("overdue", "--json"), ("stale", "--days", "14", "--json"),
-                 ("standup", "--json"), ("weekly", "--json")):
+    for argv in (
+        ("overdue", "--json"),
+        ("stale", "--days", "14", "--json"),
+        ("standup", "--json"),
+        ("weekly", "--json"),
+    ):
         p = run_helper(env, *argv)
         assert p.returncode == 0, (argv, p.stderr)
         json.loads(p.stdout)
@@ -505,8 +552,11 @@ def main():
     fields = json.loads(p.stdout)
     # sorted by name (Unicode code point order of the fixture names)
     assert [f["id"] for f in fields] == [
-        "customfield_10001", "customfield_10004",
-        "customfield_10003", "customfield_10002"], fields
+        "customfield_10001",
+        "customfield_10004",
+        "customfield_10003",
+        "customfield_10002",
+    ], fields
     by_id = {f["id"]: f for f in fields}
     assert by_id["customfield_10001"]["typeLabel"] == "テキスト（複数行）"
     assert by_id["customfield_10001"]["customId"] == 10001
@@ -525,8 +575,7 @@ def main():
     # wrong token -> 401 surfaces as an API error, without leaking it
     env_bad = dict(env)
     env_bad["JIRA_PAT"] = "WRONGTOKEN"
-    p = subprocess.run([sys.executable, HELPER, "check"],
-                       capture_output=True, text=True, env=env_bad, timeout=60)
+    p = subprocess.run([sys.executable, HELPER, "check"], capture_output=True, text=True, env=env_bad, timeout=60)
     assert p.returncode == 1, (p.returncode, p.stdout, p.stderr)
     assert "HTTP 401" in p.stderr, p.stderr
     print("dc auth failure OK")
@@ -616,8 +665,7 @@ def main():
 
     # missing env -> exit 2 (config error)
     env_none = clean_env()
-    p = subprocess.run([sys.executable, HELPER, "check"],
-                       capture_output=True, text=True, env=env_none, timeout=60)
+    p = subprocess.run([sys.executable, HELPER, "check"], capture_output=True, text=True, env=env_none, timeout=60)
     assert p.returncode == 2, (p.returncode, p.stdout, p.stderr)
     print("config error OK")
 
