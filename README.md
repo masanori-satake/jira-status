@@ -58,25 +58,43 @@ python .agents/skills/jira-status/scripts/install.py --workspace . --check
 
 ## どのリポジトリでも使う（個人用インストール）
 
-リポジトリ内への配置は、そのリポジトリを開いたときにだけ有効です。**どのリポジトリでも使いたい場合** は、スキルをユーザーディレクトリ（個人用）に導入します。Agent Skills の導入・更新を担う CLI（Vercel Labs の skills）を使う方法で、前提として Node.js（`npx` コマンド）が必要です。
+リポジトリ内への配置は、そのリポジトリを開いたときにだけ有効です。**どのリポジトリでも使いたい場合** は、スキルをユーザーディレクトリ（個人用）に導入します。導入先のディレクトリはツールごとに異なります。
 
-Kiro の場合（グローバル置き場 `~/.kiro/skills/` に入ります。Kiro IDE と Kiro CLI で共通です）。
+どちらのツールでも、Agent Skills の導入・更新を担う CLI（Vercel Labs の skills）を使う方法と、フォルダをコピーする方法があります。CLI を使う場合は Node.js（`npx` コマンド）が必要です（`-g` が個人用への導入の指定、`-a` がツールの指定です）。
+
+### Kiro の場合
+
+導入先は `~/.kiro/skills/` です（Kiro IDE と Kiro CLI で共通）。
+
+CLI を使う場合:
 
 ```bash
 npx skills add masanori-satake/jira-status -g -a kiro-cli -y
 ```
 
-GitHub Copilot の場合。
+CLI を使わない場合は、このリポジトリの `.agents/skills/jira-status/` フォルダを `~/.kiro/skills/jira-status/` にコピーしても同じです。Kiro IDE には、GitHub からグローバルスキルを取り込む機能もあります。
+
+### GitHub Copilot の場合
+
+導入先は `~/.agents/skills/` または `~/.copilot/skills/` です。
+
+CLI を使う場合（`~/.agents/skills/jira-status/` に入ります）:
 
 ```bash
 npx skills add masanori-satake/jira-status -g -a github-copilot -y
 ```
 
-`-g` が個人用（ユーザーディレクトリ）への導入を指定します。更新は次の1コマンドです。
+CLI を使わない場合は、このリポジトリの `.agents/skills/jira-status/` フォルダを `~/.agents/skills/jira-status/`（または `~/.copilot/skills/jira-status/`）にコピーしても同じです。
+
+### 更新
+
+CLI で導入した場合は、次のコマンドで更新できます。
 
 ```bash
 npx skills update -g
 ```
+
+コピーで導入した場合は、新しい版のフォルダで置き換えてください。
 
 接続情報の環境変数は、[初期設定](#初期設定) のとおりユーザー環境変数に設定しておけば、どのリポジトリからでもそのまま使えます。
 

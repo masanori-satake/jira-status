@@ -2,7 +2,7 @@
 name: jira-status
 description: Jira（Data Center / Cloud）を REST API で読み取り専用に使い、担当課題の一覧、プロジェクトの概況、期限超過・停滞課題の検出、JQL 検索、課題詳細とコメントの確認、朝会（standup）と週次報告の材料集め、カスタムフィールドを含むフィールド定義の収集を行うときに使う。期日・ステータス・コメントを中心に課題の確認を、Web 画面を行ったり来たりせずに済ませたいときに使う。
 metadata:
-  version: "1.2.4"
+  version: "1.2.5"
 ---
 
 # Jira 課題確認

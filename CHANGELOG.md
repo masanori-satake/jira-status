@@ -1,5 +1,9 @@
 # 変更履歴
 
+## 1.2.5 — 2026-11-26
+
+- README の「どのリポジトリでも使う（個人用インストール）」を、ツールごとに分けて書き直した。Kiro（導入先 `~/.kiro/skills/`）と GitHub Copilot（導入先 `~/.agents/skills/` または `~/.copilot/skills/`）で、skills CLI のコマンド（`-a` の指定）と導入先、CLI を使わないコピーでの導入方法をそれぞれ明記した。スキルの動作は変わらない。
+
 ## 1.2.4 — 2026-11-26
 
 - README に「どのリポジトリでも使う（個人用インストール）」を追加した。リポジトリ内への配置はそのリポジトリでしか有効にならないため、Agent Skills の導入・更新を担う CLI（Vercel Labs の skills）でユーザーディレクトリに導入する手順を案内する（Kiro 向けは `-a kiro-cli` で `~/.kiro/skills/` へ、GitHub Copilot 向けは `-a github-copilot`、更新は `npx skills update -g`）。配布側に新しい仕組みは足していない。スキルの動作は変わらない。
