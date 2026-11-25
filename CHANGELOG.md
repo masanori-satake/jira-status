@@ -1,5 +1,9 @@
 # 変更履歴
 
+## 1.2.4 — 2026-11-26
+
+- README に「どのリポジトリでも使う（個人用インストール）」を追加した。リポジトリ内への配置はそのリポジトリでしか有効にならないため、Agent Skills の導入・更新を担う CLI（Vercel Labs の skills）でユーザーディレクトリに導入する手順を案内する（Kiro 向けは `-a kiro-cli` で `~/.kiro/skills/` へ、GitHub Copilot 向けは `-a github-copilot`、更新は `npx skills update -g`）。配布側に新しい仕組みは足していない。スキルの動作は変わらない。
+
 ## 1.2.3 — 2026-11-25
 
 - Windows PowerShell（cp932 コンソール）での日本語文字化けへの対策。実利用で発生した事象（Notion「jira-status改善メモ」）を受けた改善。

@@ -56,6 +56,30 @@ python .agents/skills/jira-status/scripts/install.py --workspace . --check
 
 リンクが使えない環境向けに `--mode copy` もあり、`--check` がファイル集合と SHA-256 で同一性を検証します。同梱のフィクスチャテストは配置先を指定して実行できるので（PowerShell では `$env:JIRA_SKILL_DIR="<配置先>"; python tests/test_jira.py`、bash では `JIRA_SKILL_DIR=<配置先> python tests/test_jira.py`）、両方で同じ動きになることを実際に確かめられます。保守ルールの全文は [MAINTAINING.md](MAINTAINING.md) にあります。
 
+## どのリポジトリでも使う（個人用インストール）
+
+リポジトリ内への配置は、そのリポジトリを開いたときにだけ有効です。**どのリポジトリでも使いたい場合** は、スキルをユーザーディレクトリ（個人用）に導入します。Agent Skills の導入・更新を担う CLI（Vercel Labs の skills）を使う方法で、前提として Node.js（`npx` コマンド）が必要です。
+
+Kiro の場合（グローバル置き場 `~/.kiro/skills/` に入ります。Kiro IDE と Kiro CLI で共通です）。
+
+```bash
+npx skills add masanori-satake/jira-status -g -a kiro-cli -y
+```
+
+GitHub Copilot の場合。
+
+```bash
+npx skills add masanori-satake/jira-status -g -a github-copilot -y
+```
+
+`-g` が個人用（ユーザーディレクトリ）への導入を指定します。更新は次の1コマンドです。
+
+```bash
+npx skills update -g
+```
+
+接続情報の環境変数は、[初期設定](#初期設定) のとおりユーザー環境変数に設定しておけば、どのリポジトリからでもそのまま使えます。
+
 ## 初期設定
 
 利用環境は主に Windows 11 を想定しています。以後のコマンド例の `python` は、Python ランチャーを使う環境では `py` に読み替えてください。
